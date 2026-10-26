@@ -8,13 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      # 1. Клонируем наш собственный репозиторий
       - name: Checkout custom hmos-courbet repo
         uses: actions/checkout@v4
-        with:
-          path: hmos-courbet
 
-      # 2. Клонируем device tree и vendor blobs для courbet
       - name: Clone courbet sources
         run: |
           mkdir -p courbet-src
@@ -23,7 +19,6 @@ jobs:
           git clone --depth 1 https://github.com/abdalrahmaneissa/android_device_xiaomi_sm6150-common.git
           git clone --depth 1 https://github.com/abdalrahmaneissa/proprietary_vendor_xiaomi_courbet.git
 
-      # 3. Освобождаем место на диске
       - name: Maximize disk space
         uses: easimon/maximize-build-space@master
         with:
@@ -35,28 +30,31 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
-      # 4. Ставим Python и системные зависимости
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+
       - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y e2fsprogs unzip curl brotli git
 
-      # 5. Запускаем EROFS утилиты (качаем тулзы)
       - name: Fetch EROFS tools
         run: |
-          chmod +x hmos-courbet/tools/fetch_tools.sh
-          ./hmos-courbet/tools/fetch_tools.sh
+          test -f tools/fetch_tools.sh || {
+            echo "Missing tools/fetch_tools.sh in repo root"
+            ls -la
+            exit 1
+          }
+          chmod +x tools/fetch_tools.sh
+          ./tools/fetch_tools.sh
 
-      # 6. Качаем образы (с защитой от обрыва)
       - name: Download OTA and ROM
         run: |
           mkdir -p /tmp/fw
           cd /tmp/fw
-          
+
           echo "--- Скачивание HarmonyOS OTA ---"
           until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o ota.zip \
@@ -74,24 +72,18 @@ jobs:
           done
           file ota.zip rom.zip
 
-      # 7. Модифицируем скрипт на лету и запускаем портер
       - name: Run hmos2sweet for Courbet
         run: |
-          cd hmos-courbet
-          # Заменяем жестко прописанные пути sweet на наши переменные окружения (на всякий случай)
-          sed -i 's/sweet/courbet/g' hmos2sweet.py || true
-          
-          # Запускаем портер, передавая ему пути к нашим деревьям
+          ls -la
           python3 hmos2sweet.py \
             --ota /tmp/fw/ota.zip \
             --sweet-rom /tmp/fw/rom.zip \
-            --out ../out \
+            --out out \
             --patches defaults \
-            --device-tree ../courbet-src/android_device_xiaomi_courbet \
-            --common-tree ../courbet-src/android_device_xiaomi_sm6150-common \
-            --vendor-tree ../courbet-src/proprietary_vendor_xiaomi_courbet
+            --device-tree courbet-src/android_device_xiaomi_courbet \
+            --common-tree courbet-src/android_device_xiaomi_sm6150-common \
+            --vendor-tree courbet-src/proprietary_vendor_xiaomi_courbet
 
-      # 8. Разбиваем большие файлы (если > 1.8 ГБ)
       - name: Split large images
         if: always()
         run: |
@@ -104,7 +96,6 @@ jobs:
             fi
           done
 
-      # 9. Загружаем готовые артефакты
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
