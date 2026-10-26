@@ -8,11 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      # 1. Обязательно клонируем репозиторий, иначе файлов нет
+      # 1. Клонируем твой репозиторий
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2. Освобождаем место на диске (нужно ~25 ГБ)
+      # 2. Освобождаем место на диске
       - name: Maximize disk space
         uses: easimon/maximize-build-space@master
         with:
@@ -36,13 +36,25 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y e2fsprogs unzip curl brotli
 
-      # 5. Запускаем скрипт загрузки EROFS утилит
+      # 5. Защита от ошибки "No such file": если папки tools нет, качаем её с оригинала
+      - name: Verify and fetch tools directory
+        run: |
+          if [ ! -f tools/fetch_tools.sh ]; then
+            echo "WARNING: tools/fetch_tools.sh not found in repo! Fetching from upstream..."
+            git clone --depth 1 https://github.com/tsryzenstech/hmos2sweet.git /tmp/orig_hmos
+            mkdir -p tools
+            cp -r /tmp/orig_hmos/tools/* tools/
+          fi
+          echo "Files in tools/ directory:"
+          ls -la tools/
+
+      # 6. Запускаем EROFS утилиты
       - name: Fetch EROFS tools
         run: |
           chmod +x tools/fetch_tools.sh
           ./tools/fetch_tools.sh
 
-      # 6. Качаем образы (OTA HarmonyOS и LineageOS для courbet)
+      # 7. Качаем образы
       - name: Download OTA and ROM
         run: |
           mkdir -p /tmp/fw
@@ -60,7 +72,7 @@ jobs:
           file /tmp/fw/ota.zip /tmp/fw/rom.zip
           ls -lh /tmp/fw/
 
-      # 7. Запускаем сам портер
+      # 8. Запускаем сам портер
       - name: Run hmos2sweet
         run: |
           python3 hmos2sweet.py \
@@ -69,7 +81,7 @@ jobs:
             --out out \
             --patches defaults
 
-      # 8. Разбиваем большие образы (если > 1.8 ГБ), чтобы влезли в артефакты
+      # 9. Разбиваем большие файлы (чтобы влезли в артефакты)
       - name: Split large images
         if: always()
         run: |
@@ -83,7 +95,7 @@ jobs:
             fi
           done
 
-      # 9. Загружаем результат
+      # 10. Загружаем результат
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
