@@ -125,6 +125,12 @@ class Build:
                 info("  removed /vendor/%s" % rel)
         for b in p["sweet_blobs"] or []:
             src = os.path.join(self.blobs_dir, b["to"])
+            optional = b.get("optional", False)
+            if not (os.path.isdir(src) or os.path.isfile(src)):
+                if optional:
+                    warn("  optional blob %s not fetched (absent in this ROM), skipping" % b["from"])
+                    continue
+                die("blob %s was not fetched from the ROM" % b["from"])
             if os.path.isdir(src):
                 for root, dirs, files in os.walk(src):
                     dirs.sort()

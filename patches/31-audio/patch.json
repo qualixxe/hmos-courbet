@@ -23,7 +23,8 @@
     },
     {
       "from": "firmware/awinic/",
-      "to": "firmware/awinic/"
+      "to": "firmware/awinic/",
+      "optional": true
     }
   ],
   "markers": [

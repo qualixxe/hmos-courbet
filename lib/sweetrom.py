@@ -14,7 +14,7 @@ import shutil
 import subprocess
 import zipfile
 
-from .util import die, info, tool, run, mkdirs
+from .util import die, info, warn, tool, run, mkdirs
 
 BLOCK = 4096
 
@@ -124,10 +124,14 @@ def check_vendor(img):
 
 
 def fetch(img, blobs, outdir):
-    """Copy blobs ([{"from": "firmware/x", "to": "firmware/x"}], trailing / = directory)."""
+    """Copy blobs ([{"from": "firmware/x", "to": "firmware/x"}], trailing / = directory).
+
+    A blob with "optional": true is skipped with a warning when it does not
+    exist in the source image (devices other than sweet may not have it)."""
     got = []
     for b in blobs:
         src, dst = b["from"], os.path.join(outdir, b["to"])
+        optional = b.get("optional", False)
         if src.endswith("/"):
             mkdirs(dst)
             # a fresh folder for every directory blob: the previous one may not be removable
@@ -138,6 +142,10 @@ def fetch(img, blobs, outdir):
             _debugfs(img, "rdump /%s %s" % (src.rstrip("/"), tmp))
             name = os.path.basename(src.rstrip("/"))
             if not os.path.isdir(os.path.join(tmp, name)):
+                if optional:
+                    warn("optional blob directory /%s not in this image, skipping" % src)
+                    shutil.rmtree(tmp, ignore_errors=True)
+                    continue
                 die("blob directory /%s not found in the sweet vendor image" % src)
             for f in sorted(os.listdir(os.path.join(tmp, name))):
                 shutil.move(os.path.join(tmp, name, f), os.path.join(dst, f))
@@ -156,6 +164,11 @@ def fetch(img, blobs, outdir):
                     os.path.normpath(os.path.join(os.path.dirname(path), tgt))
             _debugfs(img, "dump %s %s" % (path, dst))
             if not os.path.isfile(dst) or os.path.getsize(dst) == 0:
+                if optional:
+                    warn("optional blob /%s not in this image, skipping" % src)
+                    if os.path.isfile(dst):
+                        os.remove(dst)
+                    continue
                 die("blob /%s not found in the sweet vendor image" % src)
             got.append(b["to"])
     return got
