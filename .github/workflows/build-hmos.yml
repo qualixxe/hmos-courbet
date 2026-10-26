@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      # 1. Клонируем твой репозиторий
+      # 1. Клонируем репозиторий
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -36,7 +36,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y e2fsprogs unzip curl brotli
 
-      # 5. Защита от ошибки "No such file": если папки tools нет, качаем её с оригинала
+      # 5. Защита: если папки tools нет, качаем её с оригинала
       - name: Verify and fetch tools directory
         run: |
           if [ ! -f tools/fetch_tools.sh ]; then
@@ -54,22 +54,33 @@ jobs:
           chmod +x tools/fetch_tools.sh
           ./tools/fetch_tools.sh
 
-      # 7. Качаем образы
+      # 7. Качаем образы с защитой от обрыва (докачка)
       - name: Download OTA and ROM
         run: |
           mkdir -p /tmp/fw
-          echo "Downloading HarmonyOS OTA..."
-          curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
-            -o /tmp/fw/ota.zip \
-            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"
+          cd /tmp/fw
           
-          echo "Downloading LineageOS courbet..."
-          curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
-            -o /tmp/fw/rom.zip \
-            "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"
-          
-          echo "Checking downloaded files:"
-          file /tmp/fw/ota.zip /tmp/fw/rom.zip
+          echo "--- Проверка свободного места ---"
+          df -h /
+
+          echo "--- Скачивание HarmonyOS OTA (с докачкой) ---"
+          until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
+            -o ota.zip \
+            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"; do
+            echo "Соединение оборвалось, пробую продолжить скачивание..."
+            sleep 5
+          done
+
+          echo "--- Скачивание LineageOS courbet (с докачкой) ---"
+          until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
+            -o rom.zip \
+            "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"; do
+            echo "Соединение оборвалось, пробую продолжить скачивание..."
+            sleep 5
+          done
+
+          echo "--- Проверка скачанных файлов ---"
+          file ota.zip rom.zip
           ls -lh /tmp/fw/
 
       # 8. Запускаем сам портер
