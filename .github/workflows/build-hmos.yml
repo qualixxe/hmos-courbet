@@ -8,8 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - uses: actions/checkout@v4
+      # 1. Обязательно клонируем репозиторий, иначе файлов нет
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # 2. Освобождаем место на диске (нужно ~25 ГБ)
       - name: Maximize disk space
         uses: easimon/maximize-build-space@master
         with:
@@ -21,34 +24,43 @@ jobs:
           remove-codeql: 'true'
           remove-docker-images: 'true'
 
-      - uses: actions/setup-python@v5
+      # 3. Ставим Python
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install deps
+      # 4. Ставим системные зависимости
+      - name: Install system deps
         run: |
           sudo apt-get update
           sudo apt-get install -y e2fsprogs unzip curl brotli
 
+      # 5. Запускаем скрипт загрузки EROFS утилит
       - name: Fetch EROFS tools
         run: |
           chmod +x tools/fetch_tools.sh
           ./tools/fetch_tools.sh
 
+      # 6. Качаем образы (OTA HarmonyOS и LineageOS для courbet)
       - name: Download OTA and ROM
         run: |
           mkdir -p /tmp/fw
-          echo "Downloading OTA..."
+          echo "Downloading HarmonyOS OTA..."
           curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
             -o /tmp/fw/ota.zip \
             "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"
+          
           echo "Downloading LineageOS courbet..."
           curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
             -o /tmp/fw/rom.zip \
             "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"
+          
+          echo "Checking downloaded files:"
           file /tmp/fw/ota.zip /tmp/fw/rom.zip
           ls -lh /tmp/fw/
 
+      # 7. Запускаем сам портер
       - name: Run hmos2sweet
         run: |
           python3 hmos2sweet.py \
@@ -57,6 +69,7 @@ jobs:
             --out out \
             --patches defaults
 
+      # 8. Разбиваем большие образы (если > 1.8 ГБ), чтобы влезли в артефакты
       - name: Split large images
         if: always()
         run: |
@@ -64,11 +77,13 @@ jobs:
           for f in *.img; do
             [ -f "$f" ] || continue
             if [ $(stat -c%s "$f") -gt 1800000000 ]; then
+              echo "Splitting $f..."
               split -b 1800M "$f" "${f}.part."
               rm "$f"
             fi
           done
 
+      # 9. Загружаем результат
       - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
