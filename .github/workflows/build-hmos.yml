@@ -1,0 +1,78 @@
+name: Build HarmonyOS Port
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Maximize disk space
+        uses: easimon/maximize-build-space@master
+        with:
+          root-reserve-mb: 4096
+          temp-reserve-mb: 1024
+          remove-dotnet: 'true'
+          remove-android: 'true'
+          remove-haskell: 'true'
+          remove-codeql: 'true'
+          remove-docker-images: 'true'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y e2fsprogs unzip curl brotli
+
+      - name: Fetch EROFS tools
+        run: |
+          chmod +x tools/fetch_tools.sh
+          ./tools/fetch_tools.sh
+
+      - name: Download OTA and ROM
+        run: |
+          mkdir -p /tmp/fw
+          echo "Downloading OTA..."
+          curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
+            -o /tmp/fw/ota.zip \
+            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"
+          echo "Downloading LineageOS courbet..."
+          curl -L --retry 3 -H "User-Agent: Mozilla/5.0" \
+            -o /tmp/fw/rom.zip \
+            "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"
+          file /tmp/fw/ota.zip /tmp/fw/rom.zip
+          ls -lh /tmp/fw/
+
+      - name: Run hmos2sweet
+        run: |
+          python3 hmos2sweet.py \
+            --ota /tmp/fw/ota.zip \
+            --sweet-rom /tmp/fw/rom.zip \
+            --out out \
+            --patches defaults
+
+      - name: Split large images
+        if: always()
+        run: |
+          cd out 2>/dev/null || exit 0
+          for f in *.img; do
+            [ -f "$f" ] || continue
+            if [ $(stat -c%s "$f") -gt 1800000000 ]; then
+              split -b 1800M "$f" "${f}.part."
+              rm "$f"
+            fi
+          done
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hmos-port-output
+          path: out/
+          retention-days: 7
