@@ -36,32 +36,66 @@ jobs:
           chmod +x tools/fetch_tools.sh
           ./tools/fetch_tools.sh
 
-      - name: Download OTA and ROM
+      - name: Download HarmonyOS OTA (Pura 70, HarmonyOS 5.1)
         run: |
           mkdir -p /tmp/fw
           cd /tmp/fw
 
-          echo "--- Скачивание HarmonyOS OTA (Pura 70, ~5.4 ГБ) ---"
-          until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
+          echo "--- Скачивание OTA (~5.3 ГБ) ---"
+          until curl -L --fail --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o ota.zip \
-            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"; do
+            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"; do
             echo "Обрыв, продолжаю..."
             sleep 5
           done
 
-          echo "--- Скачивание LineageOS courbet (~1.4 ГБ) ---"
-          until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
-            -o rom.zip \
-            "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"; do
-            echo "Обрыв, продолжаю..."
-            sleep 5
-          done
+          echo "sha256 ota.zip ..."
+          OBS=$(sha256sum ota.zip | cut -c1-64)
+          echo "  $OBS"
+          if [ "$OBS" != "1c872454021bc9c2479ee3f09ea6d96e4b8631119606468d1fa6af0a52d189d1" ]; then
+            echo "ОШИБКА: пакет не совпадает с проверенной сборкой (ADY-LGRP3-CHN 205.1.0.128(SP5))"
+            exit 1
+          fi
           ls -la
 
-      # Диагностический листинг: видно, какие блочные образы есть в пакетах.
+      - name: Download LineageOS courbet
+        run: |
+          cd /tmp/fw
+          # SourceForge отвечает раннерам ненадёжно: качаем с валидацией
+          # размера и целости zip с трёх вариантов URL.
+          ROM=./lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip
+          URLS=(
+            "https://downloads.sourceforge.net/project/xiaomi-11-lite-projects/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip"
+            "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"
+            "https://master.dl.sourceforge.net/project/xiaomi-11-lite-projects/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip?viasf=1"
+          )
+
+          echo "--- Скачивание LineageOS courbet (~1.4 ГБ) ---"
+          ok=""
+          for attempt in 1 2 3 4 5 6; do
+            IDX=$(( (attempt - 1) % 3 ))
+            URL="${URLS[$IDX]}"
+            echo "attempt $attempt: $URL"
+            curl -L --fail --retry 3 --retry-delay 5 --connect-timeout 30 \
+              -C - -H "User-Agent: Mozilla/5.0" -o rom.zip "$URL" && sleep 2
+            if [ -f rom.zip ] && [ "$(stat -c%s rom.zip)" -gt 900000000 ]; then
+              if python3 -c "import zipfile,sys; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" rom.zip; then
+                ok="downloaded"; mv rom.zip "$ROM" 2>/dev/null || true; break
+              fi
+            fi
+            echo "  попытка $attempt не удалась (размер: $(stat -c%s rom.zip 2>/dev/null || echo 0)), заново..."
+            rm -f rom.zip
+            sleep 5
+          done
+          [ -n "$ok" ] || { echo "ROM так и не скачался"; ls -la; exit 1; }
+          ls -la
+
+      # Ожидаемые образы в ota.zip: update.bin; в rom.zip: boot.img, dtbo.img,
+      # vendor.new.dat.br + vendor.transfer.list (блочные образы под sweetrom.py).
       - name: Inspect firmware archives
         run: |
-          for f in /tmp/fw/ota.zip /tmp/fw/rom.zip; do
+          for f in /tmp/fw/ota.zip /tmp/fw/*.zip; do
+            [ -f "$f" ] || continue
             echo "== $f"
             python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); [print('%12d  %s' % (i.file_size, i.filename)) for i in z.infolist()]" "$f"
           done
@@ -70,9 +104,12 @@ jobs:
       # блобы ядра/прошивок берутся из LineageOS courbet через --sweet-rom.
       - name: Run hmos2sweet for Courbet
         run: |
+          ROM=$(ls -1 /tmp/fw/lineage_courbet-*.zip 2>/dev/null | head -n1)
+          [ -n "$ROM" ] || { echo "ROM zip не найден"; ls -la /tmp/fw; exit 1; }
+          echo "ROM: $ROM"
           python3 -u hmos2sweet.py \
             --ota /tmp/fw/ota.zip \
-            --sweet-rom /tmp/fw/rom.zip \
+            --sweet-rom "$ROM" \
             --out out \
             --patches defaults
 
@@ -80,10 +117,10 @@ jobs:
       # его dtbo из LineageOS-зипа.
       - name: Replace dtbo.img with the courbet one
         run: |
-          cd /tmp/fw
-          unzip -o rom.zip dtbo.img -d extracted
-          if [ -f extracted/dtbo.img ]; then
-            cp -f extracted/dtbo.img "$GITHUB_WORKSPACE/out/dtbo.img"
+          ROM=$(ls -1 /tmp/fw/lineage_courbet-*.zip 2>/dev/null | head -n1)
+          [ -n "$ROM" ] && unzip -o "$ROM" dtbo.img -d /tmp/fw/extracted
+          if [ -f /tmp/fw/extracted/dtbo.img ]; then
+            cp -f /tmp/fw/extracted/dtbo.img "$GITHUB_WORKSPACE/out/dtbo.img"
             echo "dtbo.img заменён на вариант courbet из LineageOS"
             ls -la "$GITHUB_WORKSPACE/out/dtbo.img"
           else
@@ -108,5 +145,5 @@ jobs:
         with:
           name: hmos-courbet-output
           path: out/
-          if-no-files-found: suggest
+          if-no-files-found: warn
           retention-days: 7
