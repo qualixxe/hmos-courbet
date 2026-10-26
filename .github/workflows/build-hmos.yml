@@ -8,27 +8,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
-      - name: Checkout custom hmos-courbet repo
+      # Checkout FIRST: frees disk space without remounting the workspace
+      # (easimon/maximize-build-space used to wipe the checked-out repo).
+      - name: Checkout hmos-courbet repo
         uses: actions/checkout@v4
 
-      - name: Clone courbet sources
+      - name: Free disk space
         run: |
-          mkdir -p courbet-src
-          cd courbet-src
-          git clone --depth 1 https://github.com/abdalrahmaneissa/android_device_xiaomi_courbet.git
-          git clone --depth 1 https://github.com/abdalrahmaneissa/android_device_xiaomi_sm6150-common.git
-          git clone --depth 1 https://github.com/abdalrahmaneissa/proprietary_vendor_xiaomi_courbet.git
-
-      - name: Maximize disk space
-        uses: easimon/maximize-build-space@master
-        with:
-          root-reserve-mb: 4096
-          temp-reserve-mb: 1024
-          remove-dotnet: 'true'
-          remove-android: 'true'
-          remove-haskell: 'true'
-          remove-codeql: 'true'
-          remove-docker-images: 'true'
+          sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup /opt/ghc /opt/CodeQL || true
+          sudo rm -rf /usr/local/lib/android /usr/share/kotlin /opt/azuredatacli /usr/lib/jvm || true
+          sudo docker image prune -a -f >/dev/null 2>&1 || true
+          df -h /
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -39,14 +29,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y e2fsprogs unzip curl brotli git
+          pip install brotli
 
       - name: Fetch EROFS tools
         run: |
-          test -f tools/fetch_tools.sh || {
-            echo "Missing tools/fetch_tools.sh in repo root"
-            ls -la
-            exit 1
-          }
           chmod +x tools/fetch_tools.sh
           ./tools/fetch_tools.sh
 
@@ -55,7 +41,7 @@ jobs:
           mkdir -p /tmp/fw
           cd /tmp/fw
 
-          echo "--- Скачивание HarmonyOS OTA ---"
+          echo "--- Скачивание HarmonyOS OTA (Pura 70, ~5.4 ГБ) ---"
           until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o ota.zip \
             "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/a3/v3/3tlkMNeBSxWqNthH3x2tXQ/full/update_full_base.zip"; do
@@ -63,26 +49,46 @@ jobs:
             sleep 5
           done
 
-          echo "--- Скачивание LineageOS courbet ---"
+          echo "--- Скачивание LineageOS courbet (~1.4 ГБ) ---"
           until curl -L --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o rom.zip \
             "https://sourceforge.net/projects/xiaomi-11-lite-projects/files/LineageOS/March_Update/lineage_courbet-22.2-20250331-UNOFFICIAL-courbet.zip/download"; do
             echo "Обрыв, продолжаю..."
             sleep 5
           done
-          file ota.zip rom.zip
+          ls -la
 
+      # Диагностический листинг: видно, какие блочные образы есть в пакетах.
+      - name: Inspect firmware archives
+        run: |
+          for f in /tmp/fw/ota.zip /tmp/fw/rom.zip; do
+            echo "== $f"
+            python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); [print('%12d  %s' % (i.file_size, i.filename)) for i in z.infolist()]" "$f"
+          done
+
+      # В скрипте нет --device-tree/--common-tree/--vendor-tree (аргументы не поддержаны),
+      # блобы ядра/прошивок берутся из LineageOS courbet через --sweet-rom.
       - name: Run hmos2sweet for Courbet
         run: |
-          ls -la
-          python3 hmos2sweet.py \
+          python3 -u hmos2sweet.py \
             --ota /tmp/fw/ota.zip \
             --sweet-rom /tmp/fw/rom.zip \
             --out out \
-            --patches defaults \
-            --device-tree courbet-src/android_device_xiaomi_courbet \
-            --common-tree courbet-src/android_device_xiaomi_sm6150-common \
-            --vendor-tree courbet-src/proprietary_vendor_xiaomi_courbet
+            --patches defaults
+
+      # dtbo.img из предсборки собран под панель sweet; для courbet подменяем
+      # его dtbo из LineageOS-зипа.
+      - name: Replace dtbo.img with the courbet one
+        run: |
+          cd /tmp/fw
+          unzip -o rom.zip dtbo.img -d extracted
+          if [ -f extracted/dtbo.img ]; then
+            cp -f extracted/dtbo.img "$GITHUB_WORKSPACE/out/dtbo.img"
+            echo "dtbo.img заменён на вариант courbet из LineageOS"
+            ls -la "$GITHUB_WORKSPACE/out/dtbo.img"
+          else
+            echo "dtbo.img не найден в rom.zip, остаётся предсобранный"
+          fi
 
       - name: Split large images
         if: always()
@@ -102,4 +108,5 @@ jobs:
         with:
           name: hmos-courbet-output
           path: out/
+          if-no-files-found: suggest
           retention-days: 7
