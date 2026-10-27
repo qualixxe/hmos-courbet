@@ -1,0 +1,7 @@
+{
+  "name": "render_service: full-screen redraw (partial render off)",
+  "default": true,
+  "description": "Sets rosen.uni.partialrender.enabled and rosen.partialrender.enabled to 0 (PartialRenderType::DISABLED): render_service redraws the whole client target every frame instead of clipping to the damage region and publishing it with eglSetDamageRegionKHR. Mesa's OHOS platform does not implement set_damage_region (KHR_partial_update is forced off in the platform patch), so the damage path fails every frame while the canvas is already clipped. Removes those failures and any stale-buffer garbage from the partial render path.",
+  "hook": "hook.py",
+  "requires": []
+}
