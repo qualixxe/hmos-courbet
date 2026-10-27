@@ -41,11 +41,11 @@ jobs:
           mkdir -p /tmp/fw
           cd /tmp/fw
 
-          echo "--- Ð¡ÐºÐ°Ñ‡Ð¸Ð²Ð°Ð½Ð¸Ðµ OTA (~5.3 Ð“Ð‘) ---"
+          echo "--- ╨í╨║╨░╤ç╨╕╨▓╨░╨╜╨╕╨╡ OTA (~5.3 ╨ô╨æ) ---"
           until curl -L --fail --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o ota.zip \
             "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"; do
-            echo "ÐžÐ±Ñ€Ñ‹Ð², Ð¿Ñ€Ð¾Ð´Ð¾Ð»Ð¶Ð°ÑŽ..."
+            echo "╨₧╨▒╤Ç╤ï╨▓, ╨┐╤Ç╨╛╨┤╨╛╨╗╨╢╨░╤Ä..."
             sleep 5
           done
 
@@ -53,7 +53,7 @@ jobs:
           OBS=$(sha256sum ota.zip | cut -c1-64)
           echo "  $OBS"
           if [ "$OBS" != "1c872454021bc9c2479ee3f09ea6d96e4b8631119606468d1fa6af0a52d189d1" ]; then
-            echo "ÐžÐ¨Ð˜Ð‘ÐšÐ: Ð¿Ð°ÐºÐµÑ‚ Ð½Ðµ ÑÐ¾Ð²Ð¿Ð°Ð´Ð°ÐµÑ‚ Ñ Ð¿Ñ€Ð¾Ð²ÐµÑ€ÐµÐ½Ð½Ð¾Ð¹ ÑÐ±Ð¾Ñ€ÐºÐ¾Ð¹ (ADY-LGRP3-CHN 205.1.0.128(SP5))"
+            echo "╨₧╨¿╨ÿ╨æ╨Ü╨É: ╨┐╨░╨║╨╡╤é ╨╜╨╡ ╤ü╨╛╨▓╨┐╨░╨┤╨░╨╡╤é ╤ü ╨┐╤Ç╨╛╨▓╨╡╤Ç╨╡╨╜╨╜╨╛╨╣ ╤ü╨▒╨╛╤Ç╨║╨╛╨╣ (ADY-LGRP3-CHN 205.1.0.128(SP5))"
             exit 1
           fi
           ls -la
@@ -61,14 +61,14 @@ jobs:
       - name: Download LineageOS courbet
         run: |
           cd /tmp/fw
-          # SourceForge (403 Ð½Ð° Ð°Ð¹Ð¿Ð¸ÑˆÐ½Ð¸ÐºÐ¸ Ð´Ð°Ñ‚Ð°Ñ†ÐµÐ½Ñ‚Ñ€Ð¾Ð²) Ð½Ðµ Ð³Ð¾Ð´Ð¸Ñ‚ÑÑ; ROM Ð±ÐµÑ€ÐµÐ¼ Ñ
-          # Google Drive: LineageOS 23.2 (Omer), ~1.8 Ð“Ð‘.
+          # SourceForge (403 ╨╜╨░ ╨░╨╣╨┐╨╕╤ê╨╜╨╕╨║╨╕ ╨┤╨░╤é╨░╤å╨╡╨╜╤é╤Ç╨╛╨▓) ╨╜╨╡ ╨│╨╛╨┤╨╕╤é╤ü╤Å; ROM ╨▒╨╡╤Ç╨╡╨╝ ╤ü
+          # Google Drive: LineageOS 23.2 (Omer), ~1.8 ╨ô╨æ.
           ROM_ID=1IRjHBSXOJgGKHw6Kd36AtVdn_5BprpP4
           URLS=(
             "https://drive.usercontent.google.com/download?id=$ROM_ID&export=download&confirm=t"
           )
 
-          echo "--- Ð¡ÐºÐ°Ñ‡Ð¸Ð²Ð°Ð½Ð¸Ðµ LineageOS courbet ---"
+          echo "--- ╨í╨║╨░╤ç╨╕╨▓╨░╨╜╨╕╨╡ LineageOS courbet ---"
           ok=""
           for attempt in 1 2 3 4; do
             IDX=$(( (attempt - 1) % 2 ))
@@ -81,16 +81,16 @@ jobs:
                 ok="downloaded"; break
               fi
             fi
-            echo "  Ð¿Ð¾Ð¿Ñ‹Ñ‚ÐºÐ° $attempt Ð½Ðµ ÑƒÐ´Ð°Ð»Ð°ÑÑŒ (Ñ€Ð°Ð·Ð¼ÐµÑ€: $(stat -c%s rom.zip 2>/dev/null || echo 0)), Ð·Ð°Ð½Ð¾Ð²Ð¾..."
+            echo "  ╨┐╨╛╨┐╤ï╤é╨║╨░ $attempt ╨╜╨╡ ╤â╨┤╨░╨╗╨░╤ü╤î (╤Ç╨░╨╖╨╝╨╡╤Ç: $(stat -c%s rom.zip 2>/dev/null || echo 0)), ╨╖╨░╨╜╨╛╨▓╨╛..."
             rm -f rom.zip
             sleep 5
           done
-          [ -n "$ok" ] || { echo "ROM Ñ‚Ð°Ðº Ð¸ Ð½Ðµ ÑÐºÐ°Ñ‡Ð°Ð»ÑÑ"; ls -la; exit 1; }
-          echo "ROM: $(stat -c%s rom.zip) Ð±Ð°Ð¹Ñ‚"
+          [ -n "$ok" ] || { echo "ROM ╤é╨░╨║ ╨╕ ╨╜╨╡ ╤ü╨║╨░╤ç╨░╨╗╤ü╤Å"; ls -la; exit 1; }
+          echo "ROM: $(stat -c%s rom.zip) ╨▒╨░╨╣╤é"
           ls -la
 
-      # ÐžÐ¶Ð¸Ð´Ð°ÐµÐ¼Ñ‹Ðµ Ð¾Ð±Ñ€Ð°Ð·Ñ‹ Ð² ota.zip: update.bin; Ð² rom.zip: boot.img, dtbo.img,
-      # vendor.new.dat.br + vendor.transfer.list (Ð±Ð»Ð¾Ñ‡Ð½Ñ‹Ðµ Ð¾Ð±Ñ€Ð°Ð·Ñ‹ Ð¿Ð¾Ð´ sweetrom.py).
+      # ╨₧╨╢╨╕╨┤╨░╨╡╨╝╤ï╨╡ ╨╛╨▒╤Ç╨░╨╖╤ï ╨▓ ota.zip: update.bin; ╨▓ rom.zip: boot.img, dtbo.img,
+      # vendor.new.dat.br + vendor.transfer.list (╨▒╨╗╨╛╤ç╨╜╤ï╨╡ ╨╛╨▒╤Ç╨░╨╖╤ï ╨┐╨╛╨┤ sweetrom.py).
       - name: Inspect firmware archives
         run: |
           for f in /tmp/fw/ota.zip /tmp/fw/*.zip; do
@@ -99,26 +99,27 @@ jobs:
             python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); [print('%12d  %s' % (i.file_size, i.filename)) for i in z.infolist()]" "$f"
           done
 
-      # Ð’ ÑÐºÑ€Ð¸Ð¿Ñ‚Ðµ Ð½ÐµÑ‚ --device-tree/--common-tree/--vendor-tree (Ð°Ñ€Ð³ÑƒÐ¼ÐµÐ½Ñ‚Ñ‹ Ð½Ðµ Ð¿Ð¾Ð´Ð´ÐµÑ€Ð¶Ð°Ð½Ñ‹),
-      # Ð±Ð»Ð¾Ð±Ñ‹ ÑÐ´Ñ€Ð°/Ð¿Ñ€Ð¾ÑˆÐ¸Ð²Ð¾Ðº Ð±ÐµÑ€ÑƒÑ‚ÑÑ Ð¸Ð· LineageOS courbet Ñ‡ÐµÑ€ÐµÐ· --sweet-rom.
+      # ╨Æ ╤ü╨║╤Ç╨╕╨┐╤é╨╡ ╨╜╨╡╤é --device-tree/--common-tree/--vendor-tree (╨░╤Ç╨│╤â╨╝╨╡╨╜╤é╤ï ╨╜╨╡ ╨┐╨╛╨┤╨┤╨╡╤Ç╨╢╨░╨╜╤ï),
+      # ╨▒╨╗╨╛╨▒╤ï ╤Å╨┤╤Ç╨░/╨┐╤Ç╨╛╤ê╨╕╨▓╨╛╨║ ╨▒╨╡╤Ç╤â╤é╤ü╤Å ╨╕╨╖ LineageOS courbet ╤ç╨╡╤Ç╨╡╨╖ --sweet-rom.
       - name: Run hmos2sweet for Courbet
         run: |
           python3 -u hmos2sweet.py \
             --ota /tmp/fw/ota.zip \
             --sweet-rom /tmp/fw/rom.zip \
             --out out \
-            --patches "defaults,-13-refresh-120hz"`n
-      # dtbo.img Ð¸Ð· Ð¿Ñ€ÐµÐ´ÑÐ±Ð¾Ñ€ÐºÐ¸ ÑÐ¾Ð±Ñ€Ð°Ð½ Ð¿Ð¾Ð´ Ð¿Ð°Ð½ÐµÐ»ÑŒ sweet; Ð´Ð»Ñ courbet Ð¿Ð¾Ð´Ð¼ÐµÐ½ÑÐµÐ¼
-      # ÐµÐ³Ð¾ dtbo Ð¸Ð· LineageOS-Ð·Ð¸Ð¿Ð°.
+            --patches defaults,-13-refresh-120hz
+
+      # dtbo.img ╨╕╨╖ ╨┐╤Ç╨╡╨┤╤ü╨▒╨╛╤Ç╨║╨╕ ╤ü╨╛╨▒╤Ç╨░╨╜ ╨┐╨╛╨┤ ╨┐╨░╨╜╨╡╨╗╤î sweet; ╨┤╨╗╤Å courbet ╨┐╨╛╨┤╨╝╨╡╨╜╤Å╨╡╨╝
+      # ╨╡╨│╨╛ dtbo ╨╕╨╖ LineageOS-╨╖╨╕╨┐╨░.
       - name: Replace dtbo.img with the courbet one
         run: |
           unzip -o /tmp/fw/rom.zip dtbo.img -d /tmp/fw/extracted
           if [ -f /tmp/fw/extracted/dtbo.img ]; then
             cp -f /tmp/fw/extracted/dtbo.img "$GITHUB_WORKSPACE/out/dtbo.img"
-            echo "dtbo.img Ð·Ð°Ð¼ÐµÐ½Ñ‘Ð½ Ð½Ð° Ð²Ð°Ñ€Ð¸Ð°Ð½Ñ‚ courbet Ð¸Ð· LineageOS"
+            echo "dtbo.img ╨╖╨░╨╝╨╡╨╜╤æ╨╜ ╨╜╨░ ╨▓╨░╤Ç╨╕╨░╨╜╤é courbet ╨╕╨╖ LineageOS"
             ls -la "$GITHUB_WORKSPACE/out/dtbo.img"
           else
-            echo "dtbo.img Ð½Ðµ Ð½Ð°Ð¹Ð´ÐµÐ½ Ð² rom.zip, Ð¾ÑÑ‚Ð°Ñ‘Ñ‚ÑÑ Ð¿Ñ€ÐµÐ´ÑÐ¾Ð±Ñ€Ð°Ð½Ð½Ñ‹Ð¹"
+            echo "dtbo.img ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜ ╨▓ rom.zip, ╨╛╤ü╤é╨░╤æ╤é╤ü╤Å ╨┐╤Ç╨╡╨┤╤ü╨╛╨▒╤Ç╨░╨╜╨╜╤ï╨╣"
           fi
 
       - name: Split large images
