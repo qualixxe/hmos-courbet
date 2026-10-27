@@ -107,7 +107,7 @@ jobs:
             --ota /tmp/fw/ota.zip \
             --sweet-rom /tmp/fw/rom.zip \
             --out out \
-            --patches defaults,-13-refresh-120hz
+            --patches defaults,50-remove-setup-wizard,-13-refresh-120hz
 
       # dtbo.img ╨╕╨╖ ╨┐╤Ç╨╡╨┤╤ü╨▒╨╛╤Ç╨║╨╕ ╤ü╨╛╨▒╤Ç╨░╨╜ ╨┐╨╛╨┤ ╨┐╨░╨╜╨╡╨╗╤î sweet; ╨┤╨╗╤Å courbet ╨┐╨╛╨┤╨╝╨╡╨╜╤Å╨╡╨╝
       # ╨╡╨│╨╛ dtbo ╨╕╨╖ LineageOS-╨╖╨╕╨┐╨░.
