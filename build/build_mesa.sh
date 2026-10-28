@@ -21,7 +21,7 @@ ar = 'llvm-ar'
 strip = 'llvm-strip'
 pkgconfig = 'pkg-config'
 [built-in options]
-c_args = ['-O2', '-fno-emulated-tls', '-Wno-error', '-Wno-int-conversion', '-Wno-incompatible-function-pointer-types']
+c_args = ['-O2', '-fno-emulated-tls', '-Wno-error', '-Wno-int-conversion', '-Wno-incompatible-function-pointer-types', '-DHAVE_OHOS_PLATFORM']
 cpp_args = ['-O2', '-fno-emulated-tls', '-Wno-error']
 c_link_args = ['-Wl,--no-undefined', '-Wl,--undefined-version', '$SYSROOT/usr/lib/libc.so']
 cpp_link_args = ['-Wl,--no-undefined', '-Wl,--undefined-version', '$SYSROOT/usr/lib/libc++.so', '$SYSROOT/usr/lib/libc.so']
@@ -34,10 +34,10 @@ cpu_family = 'aarch64'
 cpu = 'armv8-a'
 endian = 'little'
 EOC
-meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=ohos -Degl-native-platform=ohos \
+meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=android -Degl-native-platform=ohos \
   -Dandroid-stub=false -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=enabled -Dllvm=disabled \
-  --reconfigure 2>/dev/null || meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=ohos \
+  --reconfigure 2>/dev/null || meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=android \
   -Degl-native-platform=ohos -Dandroid-stub=false -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= \
   -Dfreedreno-kmds=kgsl -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=enabled -Dllvm=disabled
 ninja -C "$M/b"
