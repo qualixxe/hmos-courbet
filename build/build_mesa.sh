@@ -14,7 +14,7 @@ pc libhilog 1.0 hilog "-I$O/hiviewdfx_hilog/interfaces/native/innerkits/include"
 pc libsurface 1.0 surface.z "-I$O/graphic_graphic_surface/interfaces/inner_api/surface -I$O/graphic_graphic_surface/interfaces/inner_api/utils -I$O/drivers_peripheral/display/interfaces/include -I$O/graphic_graphic_surface/interfaces/inner_api/common"
 pc zlib 1.2.13 z "-I$SYSROOT/usr/include"
 # create minimal libc.so / libc++.so stubs if missing (CI has no OTA images)
-[ -f "$SYSROOT/usr/lib/libc.so" ] || { mkdir -p "$SYSROOT/usr/lib"; cat > "/tmp/libc_stub.c" <<'STUBCEOF'
+[ -f "$SYSROOT/usr/lib/libc.so" ] || { mkdir -p "$SYSROOT/usr/lib"; cat > "/tmp/libc_stub.c" <<'EOF'
 #include <stddef.h>
 void __libc_start_main(int (*main)(int, char**, char**), int argc, char** argv, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {}
 int __libc_start_main(void) { return 0; }
@@ -25,7 +25,7 @@ int strcmp(const char *a, const char *b) { return 0; }
 int strncmp(const char *a, const char *b, size_t n) { return 0; }
 EOF
 "$REPO/build/ohos-clang" -shared -o "$SYSROOT/usr/lib/libc.so" "/tmp/libc_stub.c" -O2 -fPIC; }
-[ -f "$SYSROOT/usr/lib/libc++.so" ] || { mkdir -p "$SYSROOT/usr/lib"; cat > "/tmp/libcpp_stub.cpp" <<'STUBCPPXEOF'
+[ -f "$SYSROOT/usr/lib/libc++.so" ] || { mkdir -p "$SYSROOT/usr/lib"; cat > "/tmp/libcpp_stub.cpp" <<'EOF'
 void __gxx_personality_v0() {}
 void *operator new(size_t s) { return NULL; }
 void operator delete(void *p) {}
@@ -39,9 +39,9 @@ make_stub_so() {
     local name="$1"
     local out="$SYSROOT/usr/lib/lib${name}.so"
     if [ ! -f "$out" ]; then
-        cat > "/tmp/${name}_stub.c" <<'STUBEOF'
+        cat > "/tmp/${name}_stub.c" <<'EOF'
 #include <stddef.h>
-STUBEOF
+EOF
         case "$name" in
             cutils)
                 cat >> "/tmp/${name}_stub.c" <<'EOF'
