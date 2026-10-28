@@ -1,0 +1,49 @@
+name: Build Mesa for Courbet
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - name: Checkout hmos-courbet repo
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y meson ninja-build python3-mako python3-yaml glslang bison flex e2fsprogs unzip curl brotli git pkg-config
+          pip3 install brotli
+
+      - name: Fetch OpenHarmony sources (headers for libsurface/libhilog)
+        run: |
+          chmod +x build/fetch_oh_sources.sh
+          ./build/fetch_oh_sources.sh
+
+      - name: Prepare sysroot base
+        run: |
+          mkdir -p build/work/sysroot
+          tar -xJf build/sysroot-base.tar.xz -C build/work/sysroot
+
+      - name: Clone Mesa sources
+        run: |
+          mkdir -p build/work
+          git clone --filter=blob:none --depth 1 https://gitlab.freedesktop.org/mesa/mesa.git build/work/mesa
+
+      - name: Build Mesa (OHOS EGL platform, freedreno/kgsl)
+        run: |
+          chmod +x build/build_mesa.sh
+          ./build/build_mesa.sh
+
+      - name: Commit and push updated mesa .so
+        run: |
+          git config user.name "qualixxe"
+          git config user.email "qualixxe@users.noreply.github.com"
+          git add patches/11-gpu-mesa/files/lib64/chipsetsdk/
+          git commit -m "mesa: rebuild with GPU fence wait fix" || true
+          git push origin main || true
