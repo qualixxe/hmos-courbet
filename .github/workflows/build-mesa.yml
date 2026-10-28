@@ -20,10 +20,13 @@ jobs:
           sudo apt-get install -y meson ninja-build python3-mako python3-yaml bison flex e2fsprogs unzip curl brotli git pkg-config
           pip3 install brotli
 
-      - name: Fetch OpenHarmony sources (headers for libsurface/libhilog)
+      - name: Fetch OpenHarmony headers from GitHub mirrors
         run: |
-          chmod +x build/fetch_oh_sources.sh
-          ./build/fetch_oh_sources.sh
+          mkdir -p build/work/openharmony
+          cd build/work/openharmony
+          for r in hiviewdfx_hilog graphic_graphic_surface drivers_peripheral third_party_libdrm; do
+            [ -d "$r" ] || git clone --depth 1 https://github.com/OpenHarmony/$r.git "$r"
+          done
 
       - name: Prepare sysroot base
         run: |
