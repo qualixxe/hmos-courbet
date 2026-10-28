@@ -50,7 +50,7 @@ pkgconfig = 'pkg-config'
 [built-in options]
 c_args = ['-O2', '-fno-emulated-tls', '-Wno-error', '-Wno-int-conversion', '-Wno-incompatible-function-pointer-types', '-DHAVE_OHOS_PLATFORM']
 cpp_args = ['-O2', '-fno-emulated-tls', '-Wno-error']
-c_link_args = ['-Wl,--no-undefined', '-Wl,--undefined-version', '$SYSROOT/usr/lib/libc.so']
+c_link_args = ['-Wl,--undefined-version', '$SYSROOT/usr/lib/libc.so']
 cpp_link_args = ['-Wl,--no-undefined', '-Wl,--undefined-version', '$SYSROOT/usr/lib/libc++.so', '$SYSROOT/usr/lib/libc.so']
 [properties]
 needs_exe_wrapper = true
