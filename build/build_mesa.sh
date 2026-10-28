@@ -19,8 +19,8 @@ cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
 cpp = '$REPO/build/ohos-clang++'
-ar = 'llvm-ar'
-strip = 'llvm-strip'
+ar = 'ar'
+strip = 'strip'
 pkgconfig = 'pkg-config'
 [built-in options]
 c_args = ['-O2', '-fno-emulated-tls', '-Wno-error', '-Wno-int-conversion', '-Wno-incompatible-function-pointer-types', '-DHAVE_OHOS_PLATFORM']
