@@ -19,6 +19,9 @@ pc zlib 1.2.13 z "-I$SYSROOT/usr/include"
 # create cutils.pc stub (Android lib, not needed for our build)
 printf 'Name: cutils\nDescription: Android cutils stub\nVersion: 1.0\nLibs: -L%s -lcutils\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/cutils.pc"
 touch "$SYSROOT/usr/lib/libcutils.so"
+# create hardware.pc stub
+printf 'Name: hardware\nDescription: Android hardware stub\nVersion: 1.0\nLibs: -L%s -lhardware\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/hardware.pc"
+touch "$SYSROOT/usr/lib/libhardware.so"
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
