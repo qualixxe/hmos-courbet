@@ -13,6 +13,8 @@ pc libdrm 2.4.120 drm "-I$O/third_party_libdrm -I$O/third_party_libdrm/include/d
 pc libhilog 1.0 hilog "-I$O/hiviewdfx_hilog/interfaces/native/innerkits/include"
 pc libsurface 1.0 surface.z "-I$O/graphic_graphic_surface/interfaces/inner_api/surface -I$O/graphic_graphic_surface/interfaces/inner_api/utils -I$O/drivers_peripheral/display/interfaces/include -I$O/graphic_graphic_surface/interfaces/inner_api/common"
 pc zlib 1.2.13 z "-I$SYSROOT/usr/include"
+# create minimal libc.so stub if missing (CI has no OTA images to extract it from)
+[ -f "$SYSROOT/usr/lib/libc.so" ] || { mkdir -p "$SYSROOT/usr/lib"; touch "$SYSROOT/usr/lib/libc.so"; }
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
