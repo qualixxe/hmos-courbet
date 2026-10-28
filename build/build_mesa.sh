@@ -34,6 +34,9 @@ touch "$SYSROOT/usr/lib/libdl.so"
 # create sync.pc stub
 printf 'Name: sync\nDescription: Android sync stub\nVersion: 1.0\nLibs: -L%s -lsync\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/sync.pc"
 touch "$SYSROOT/usr/lib/libsync.so"
+# create nativewindow.pc stub
+printf 'Name: nativewindow\nDescription: Android nativewindow stub\nVersion: 1.0\nLibs: -L%s -lnativewindow\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/nativewindow.pc"
+touch "$SYSROOT/usr/lib/libnativewindow.so"
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
