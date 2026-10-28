@@ -31,6 +31,9 @@ touch "$SYSROOT/usr/lib/libutils.so"
 # create dl.pc stub
 printf 'Name: dl\nDescription: Android dl stub\nVersion: 1.0\nLibs: -L%s -ldl\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/dl.pc"
 touch "$SYSROOT/usr/lib/libdl.so"
+# create sync.pc stub
+printf 'Name: sync\nDescription: Android sync stub\nVersion: 1.0\nLibs: -L%s -lsync\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/sync.pc"
+touch "$SYSROOT/usr/lib/libsync.so"
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
