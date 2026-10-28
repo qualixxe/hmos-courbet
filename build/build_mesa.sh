@@ -34,11 +34,11 @@ cpu_family = 'aarch64'
 cpu = 'armv8-a'
 endian = 'little'
 EOC
-meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=android -Degl-native-platform=ohos \
+meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=android -Degl-native-platform=android \
   -Dandroid-stub=false -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=enabled -Dllvm=disabled \
   --reconfigure 2>/dev/null || meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release -Dplatforms=android \
-  -Degl-native-platform=ohos -Dandroid-stub=false -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= \
+  -Degl-native-platform=android -Dandroid-stub=false -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= \
   -Dfreedreno-kmds=kgsl -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled -Degl=enabled -Dllvm=disabled
 ninja -C "$M/b"
 F=$REPO/patches/11-gpu-mesa/files/lib64/chipsetsdk
