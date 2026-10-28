@@ -27,6 +27,13 @@ VALUE = "0"
 EDITABLE = ("system", "vendor")
 READONLY = ("cust", "patch", "chip_prod", "sys_prod", "preload")
 PARAM_DIR = "etc/param"
+# The system partition is extracted with a system-as-root layout: paths inside
+# the tree carry the leading "system/" (see lib/erofs.py), vendor does not.
+PREFIX = {"system": "system/", "vendor": ""}
+
+
+def _img_rel(part, rel):
+    return PREFIX[part] + rel.strip("/")
 
 
 def _match(line, key):
@@ -78,7 +85,7 @@ def apply(ctx):
     trees = {"system": ctx.system(), "vendor": ctx.vendor}
     forced = 0
     for part in EDITABLE:
-        root = trees[part].path(PARAM_DIR)
+        root = trees[part].path(_img_rel(part, PARAM_DIR))
         if not os.path.isdir(root):
             ctx.info("  /%s/%s does not exist" % (part, PARAM_DIR))
             continue
@@ -111,10 +118,12 @@ def apply(ctx):
         return
     block = "".join("%s=%s\n" % (k, VALUE) for k in PARAMS)
     appended = []
-    for part in EDITABLE:  # vendor first: config policy loads it before system
+    # Both partitions get the pair: whichever config directory init loads
+    # first, the value is 0 either way.
+    for part in EDITABLE:
         tree = trees[part]
         target = None
-        pdir = tree.path(PARAM_DIR)
+        pdir = tree.path(_img_rel(part, PARAM_DIR))
         if os.path.isdir(pdir):
             for path in _walk(pdir):
                 if path.endswith(".para"):
@@ -128,7 +137,7 @@ def apply(ctx):
             tree.write(rel, (cur + block).encode("utf-8"))
             appended.append("/%s/%s" % (part, rel))
         else:
-            rel = PARAM_DIR + "/sweet-rs.para"
+            rel = _img_rel(part, PARAM_DIR + "/sweet-rs.para")
             tree.write(rel, block.encode("utf-8"))
             appended.append("/%s/%s (new)" % (part, rel))
     ctx.info("  appended %s to %s" % ("; ".join("%s=%s" % (k, VALUE) for k in PARAMS),
