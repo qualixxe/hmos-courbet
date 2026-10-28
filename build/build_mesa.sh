@@ -22,6 +22,15 @@ touch "$SYSROOT/usr/lib/libcutils.so"
 # create hardware.pc stub
 printf 'Name: hardware\nDescription: Android hardware stub\nVersion: 1.0\nLibs: -L%s -lhardware\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/hardware.pc"
 touch "$SYSROOT/usr/lib/libhardware.so"
+# create log.pc stub
+printf 'Name: log\nDescription: Android log stub\nVersion: 1.0\nLibs: -L%s -llog\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/log.pc"
+touch "$SYSROOT/usr/lib/liblog.so"
+# create utils.pc stub
+printf 'Name: utils\nDescription: Android utils stub\nVersion: 1.0\nLibs: -L%s -lutils\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/utils.pc"
+touch "$SYSROOT/usr/lib/libutils.so"
+# create dl.pc stub
+printf 'Name: dl\nDescription: Android dl stub\nVersion: 1.0\nLibs: -L%s -ldl\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/dl.pc"
+touch "$SYSROOT/usr/lib/libdl.so"
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
