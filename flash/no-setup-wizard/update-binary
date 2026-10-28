@@ -1,0 +1,35 @@
+#!/system/bin/sh
+# no setup wizard recovery zip (TWRP-style update-binary).
+# Invoked by the recovery as: update-binary <api> <outfd> <zipfile>.
+# NOTE: stock Lineage recovery verifies zip signatures against build-time
+# keys, so this zip only installs where signature check is off (TWRP etc).
+# The reliable path on Lineage recovery is install.bat + adb (see README).
+OUTFD="$2"
+ZIP="$3"
+ui() { printf 'ui_print %s\nui_print\n' "$1" > /proc/self/fd/"$OUTFD"; }
+ui "=== no setup wizard: marking OOBE done ==="
+if [ ! -d /data/app ]; then
+  for dev in /dev/block/by-name/userdata /dev/block/bootdevice/by-name/userdata; do
+    [ -e "$dev" ] || continue
+    mount -t f2fs "$dev" /data 2>/dev/null && break
+    mount -t ext4 "$dev" /data 2>/dev/null && break
+  done
+fi
+if [ ! -d /data/app ]; then
+  ui "ERROR: /data is not mounted"
+  exit 1
+fi
+cd /tmp || exit 1
+rm -f sweet-oobedone
+unzip -o "$ZIP" sweet-oobedone > /dev/null 2>&1
+if [ ! -f /tmp/sweet-oobedone ]; then
+  ui "ERROR: unzip failed"
+  exit 1
+fi
+chmod 755 /tmp/sweet-oobedone
+ui "Patching settingsdata databases ..."
+/tmp/sweet-oobedone
+ui "Kernel log:"
+dmesg | grep sweet-oobedone | tail -n 10 | while IFS= read -r l; do ui "$l"; done
+ui "Done. Reboot to system."
+exit 0
