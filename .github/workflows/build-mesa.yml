@@ -40,7 +40,7 @@ jobs:
 
       - name: Build Mesa (OHOS EGL platform, freedreno/kgsl)
         run: |
-          chmod +x build/build_mesa.sh
+          chmod +x build/ohos-clang build/ohos-clang++ build/build_mesa.sh
           ./build/build_mesa.sh
 
       - name: Commit and push updated mesa .so
