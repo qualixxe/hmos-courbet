@@ -16,6 +16,9 @@ pc zlib 1.2.13 z "-I$SYSROOT/usr/include"
 # create minimal libc.so / libc++.so stubs if missing (CI has no OTA images)
 [ -f "$SYSROOT/usr/lib/libc.so" ] || { mkdir -p "$SYSROOT/usr/lib"; touch "$SYSROOT/usr/lib/libc.so"; }
 [ -f "$SYSROOT/usr/lib/libc++.so" ] || { mkdir -p "$SYSROOT/usr/lib"; touch "$SYSROOT/usr/lib/libc++.so"; }
+# create cutils.pc stub (Android lib, not needed for our build)
+printf 'Name: cutils\nDescription: Android cutils stub\nVersion: 1.0\nLibs: -L%s -lcutils\nCflags: -I%s\n' "$SYSROOT/usr/lib" "$SYSROOT/usr/include" > "$M/pc/cutils.pc"
+touch "$SYSROOT/usr/lib/libcutils.so"
 cat > "$M/cross.ini" <<EOC
 [binaries]
 c = '$REPO/build/ohos-clang'
