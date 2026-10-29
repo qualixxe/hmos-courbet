@@ -145,17 +145,55 @@ jobs:
             echo "dtbo.img не найден в rom.zip, остаётся предсобранный"
           fi
 
-      - name: Split large images
-        if: always()
+      # Нарезка (>1800000000 байт) ломала прошивку: install_clean.bat флешит
+      # "%OUT%system.img", а в artifact попадали только *.part.* -- lib/flashgen.py
+      # части не склеивает. Артефакты носят файлы по 3 ГБ без проблем, так что
+      # вместо нарезки проверяем, что каждый образ из скрипта на месте и это EROFS.
+      - name: Verify the flash set
         run: |
-          cd out 2>/dev/null || exit 0
-          for f in *.img; do
-            [ -f "$f" ] || continue
-            if [ $(stat -c%s "$f") -gt 1800000000 ]; then
-              split -b 1800M "$f" "${f}.part."
-              rm "$f"
-            fi
-          done
+          cd out
+          ls -l
+          python3 - <<'PY'
+          import os, re, struct, sys
+
+          bat = open('install_clean.bat', encoding='utf-8', errors='replace').read()
+          refs = sorted(set(re.findall(r'%OUT%([A-Za-z0-9_.]+\.(?:img|bat|sh))', bat)))
+          sizes = dict((n, int(s)) for n, s in re.findall(r'fastboot resize-logical-partition (\w+) (\d+)', bat))
+          EROFS = ('system', 'vendor', 'chip_prod', 'sys_prod', 'cust', 'patch')
+
+          def header(name):
+              with open(name, 'rb') as f:
+                  stem = name[:-4]
+                  if stem in EROFS:
+                      f.seek(1024)
+                      return ('EROFS', struct.unpack('<I', f.read(4))[0] == 0xE0F5E1E2)
+                  head = f.read(4)
+                  if stem == 'boot':
+                      return ('ANDROID boot', head == b'ANDR')
+                  if stem == 'dtbo':
+                      # LineageOS ships a DTBO container header; a bare DTB is also fine.
+                      return ('DTBO/DTB', head in (b'\xd7\xb7\xab\x1e', b'\xd0\x0d\xfe\xed'))
+                  return ('-', True)
+
+          bad = []
+          for name in refs:
+              if not os.path.isfile(name):
+                  bad.append('%s: файла нет в artifact' % name)
+                  continue
+              size = os.path.getsize(name)
+              if name[:-4] in sizes and sizes[name[:-4]] != size:
+                  bad.append('%s: %d байт, а resize-logical-partition ждёт %d' % (name, size, sizes[name[:-4]]))
+              kind, ok = header(name)
+              if not ok:
+                  bad.append('%s: не похож на %s' % (name, kind))
+          leftovers = [p for p in os.listdir('.') if '.part.' in p]
+          if leftovers:
+              bad.append('в out/ остались обломки нарезки: %s' % leftovers)
+          for line in bad:
+              print('::error::' + line)
+          print('flash set: %d файлов, %d проблем' % (len(refs), len(bad)))
+          sys.exit(1 if bad else 0)
+          PY
 
       - name: Upload artifacts
         if: always()
