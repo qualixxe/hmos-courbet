@@ -67,17 +67,38 @@ jobs:
         run: |
           git config user.name "qualixxe"
           git config user.email "qualixxe@users.noreply.github.com"
-          git add -A patches/11-gpu-mesa/files/lib64/chipsetsdk/
-          if git diff --cached --quiet; then
-            echo "no changes to the shipped Mesa binaries"
-            exit 0
-          fi
-          git commit -m "mesa: rebuild $MESA_REF for courbet (GPU fence wait fix)"
-          # Another commit can land on main while this job builds; rebase onto it
-          # so the binaries still get published instead of losing the push. Whatever
-          # is still uncommitted here is build-script churn, not the Mesa output,
-          # so throw it away rather than stashing it across the rebase.
-          git checkout -f -- .
-          git fetch --no-tags origin main
-          git rebase FETCH_HEAD
-          git push "https://x-access-token:${GITHUB_TOKEN}@github.com/$GITHUB_REPOSITORY.git" HEAD:main
+          DIR=patches/11-gpu-mesa/files/lib64/chipsetsdk
+          # Whatever the build leaves dirty in the work tree -- the runner reported
+          # "cannot rebase: You have unstaged changes" for three runs on
+          # chmod-free, CRLF-free, submodule-free trees -- must not be able to
+          # block publication, so build the commit with plumbing instead:
+          # read main's tree into a private index, swap in the fresh .so files and
+          # commit that.  The checked-out work tree is never consulted.
+          echo "== work tree state, for the record =="
+          git status --porcelain | head -20
+          for attempt in 1 2 3; do
+            git fetch --no-tags origin main
+            BASE=$(git rev-parse FETCH_HEAD)
+            rm -f "$RUNNER_TEMP/mesa.index"
+            GIT_INDEX_FILE="$RUNNER_TEMP/mesa.index" git read-tree "$BASE"
+            for f in "$DIR"/*.so; do
+              GIT_INDEX_FILE="$RUNNER_TEMP/mesa.index" \
+                git update-index --add --cacheinfo 100644,"$(git hash-object --no-filters -w "$f")","$f"
+            done
+            TREE=$(GIT_INDEX_FILE="$RUNNER_TEMP/mesa.index" git write-tree)
+            if [ "$TREE" = "$(git rev-parse "$BASE^{tree}")" ]; then
+              echo "no changes to the shipped Mesa binaries"
+              exit 0
+            fi
+            COMMIT=$(git commit-tree "$TREE" -p "$BASE" \
+              -m "mesa: rebuild $MESA_REF for courbet (GPU fence wait fix)")
+            # Pushing a commit instead of a branch turns a commit that landed on
+            # main during the build into a rejection, never an overwrite.
+            if git push origin "$COMMIT:refs/heads/main"; then
+              echo "published $COMMIT"
+              exit 0
+            fi
+            echo "main moved while this job ran, rebuilding on its new tip ($attempt)"
+          done
+          echo "could not publish after 3 attempts"
+          exit 1
