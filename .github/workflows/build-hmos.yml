@@ -1,4 +1,4 @@
-﻿name: Build HarmonyOS for Courbet
+name: Build HarmonyOS for Courbet
 
 on:
   workflow_dispatch:
@@ -41,11 +41,11 @@ jobs:
           mkdir -p /tmp/fw
           cd /tmp/fw
 
-          echo "--- ╨í╨║╨░╤ç╨╕╨▓╨░╨╜╨╕╨╡ OTA (~5.3 ╨ô╨æ) ---"
+          echo "--- Скачивание OTA (~5.3 ГБ) ---"
           until curl -L --fail --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
             -o ota.zip \
             "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"; do
-            echo "╨₧╨▒╤Ç╤ï╨▓, ╨┐╤Ç╨╛╨┤╨╛╨╗╨╢╨░╤Ä..."
+            echo "Обрыв, продолжаю..."
             sleep 5
           done
 
@@ -53,7 +53,7 @@ jobs:
           OBS=$(sha256sum ota.zip | cut -c1-64)
           echo "  $OBS"
           if [ "$OBS" != "1c872454021bc9c2479ee3f09ea6d96e4b8631119606468d1fa6af0a52d189d1" ]; then
-            echo "╨₧╨¿╨ÿ╨æ╨Ü╨É: ╨┐╨░╨║╨╡╤é ╨╜╨╡ ╤ü╨╛╨▓╨┐╨░╨┤╨░╨╡╤é ╤ü ╨┐╤Ç╨╛╨▓╨╡╤Ç╨╡╨╜╨╜╨╛╨╣ ╤ü╨▒╨╛╤Ç╨║╨╛╨╣ (ADY-LGRP3-CHN 205.1.0.128(SP5))"
+            echo "ОШИБКА: пакет не совпадает с проверенной сборкой (ADY-LGRP3-CHN 205.1.0.128(SP5))"
             exit 1
           fi
           ls -la
@@ -61,14 +61,14 @@ jobs:
       - name: Download LineageOS courbet
         run: |
           cd /tmp/fw
-          # SourceForge (403 ╨╜╨░ ╨░╨╣╨┐╨╕╤ê╨╜╨╕╨║╨╕ ╨┤╨░╤é╨░╤å╨╡╨╜╤é╤Ç╨╛╨▓) ╨╜╨╡ ╨│╨╛╨┤╨╕╤é╤ü╤Å; ROM ╨▒╨╡╤Ç╨╡╨╝ ╤ü
-          # Google Drive: LineageOS 23.2 (Omer), ~1.8 ╨ô╨æ.
+          # SourceForge (403 на айпишники датацентров) не годится; ROM берем с
+          # Google Drive: LineageOS 23.2 (Omer), ~1.8 ГБ.
           ROM_ID=1IRjHBSXOJgGKHw6Kd36AtVdn_5BprpP4
           URLS=(
             "https://drive.usercontent.google.com/download?id=$ROM_ID&export=download&confirm=t"
           )
 
-          echo "--- ╨í╨║╨░╤ç╨╕╨▓╨░╨╜╨╕╨╡ LineageOS courbet ---"
+          echo "--- Скачивание LineageOS courbet ---"
           ok=""
           for attempt in 1 2 3 4; do
             IDX=$(( (attempt - 1) % 2 ))
@@ -81,16 +81,16 @@ jobs:
                 ok="downloaded"; break
               fi
             fi
-            echo "  ╨┐╨╛╨┐╤ï╤é╨║╨░ $attempt ╨╜╨╡ ╤â╨┤╨░╨╗╨░╤ü╤î (╤Ç╨░╨╖╨╝╨╡╤Ç: $(stat -c%s rom.zip 2>/dev/null || echo 0)), ╨╖╨░╨╜╨╛╨▓╨╛..."
+            echo "  попытка $attempt не удалась (размер: $(stat -c%s rom.zip 2>/dev/null || echo 0)), заново..."
             rm -f rom.zip
             sleep 5
           done
-          [ -n "$ok" ] || { echo "ROM ╤é╨░╨║ ╨╕ ╨╜╨╡ ╤ü╨║╨░╤ç╨░╨╗╤ü╤Å"; ls -la; exit 1; }
-          echo "ROM: $(stat -c%s rom.zip) ╨▒╨░╨╣╤é"
+          [ -n "$ok" ] || { echo "ROM так и не скачался"; ls -la; exit 1; }
+          echo "ROM: $(stat -c%s rom.zip) байт"
           ls -la
 
-      # ╨₧╨╢╨╕╨┤╨░╨╡╨╝╤ï╨╡ ╨╛╨▒╤Ç╨░╨╖╤ï ╨▓ ota.zip: update.bin; ╨▓ rom.zip: boot.img, dtbo.img,
-      # vendor.new.dat.br + vendor.transfer.list (╨▒╨╗╨╛╤ç╨╜╤ï╨╡ ╨╛╨▒╤Ç╨░╨╖╤ï ╨┐╨╛╨┤ sweetrom.py).
+      # Ожидаемые образы в ota.zip: update.bin; в rom.zip: boot.img, dtbo.img,
+      # vendor.new.dat.br + vendor.transfer.list (блочные образы под sweetrom.py).
       - name: Inspect firmware archives
         run: |
           for f in /tmp/fw/ota.zip /tmp/fw/*.zip; do
@@ -99,8 +99,8 @@ jobs:
             python3 -c "import zipfile,sys; z=zipfile.ZipFile(sys.argv[1]); [print('%12d  %s' % (i.file_size, i.filename)) for i in z.infolist()]" "$f"
           done
 
-      # ╨Æ ╤ü╨║╤Ç╨╕╨┐╤é╨╡ ╨╜╨╡╤é --device-tree/--common-tree/--vendor-tree (╨░╤Ç╨│╤â╨╝╨╡╨╜╤é╤ï ╨╜╨╡ ╨┐╨╛╨┤╨┤╨╡╤Ç╨╢╨░╨╜╤ï),
-      # ╨▒╨╗╨╛╨▒╤ï ╤Å╨┤╤Ç╨░/╨┐╤Ç╨╛╤ê╨╕╨▓╨╛╨║ ╨▒╨╡╤Ç╤â╤é╤ü╤Å ╨╕╨╖ LineageOS courbet ╤ç╨╡╤Ç╨╡╨╖ --sweet-rom.
+      # В скрипте нет --device-tree/--common-tree/--vendor-tree (аргументы не поддержаны),
+      # блобы ядра/прошивок берутся из LineageOS courbet через --sweet-rom.
       - name: Run hmos2sweet for Courbet
         run: |
           python3 -u hmos2sweet.py \
@@ -109,17 +109,17 @@ jobs:
             --out out \
             --patches defaults,50-remove-setup-wizard,-13-refresh-120hz
 
-      # dtbo.img ╨╕╨╖ ╨┐╤Ç╨╡╨┤╤ü╨▒╨╛╤Ç╨║╨╕ ╤ü╨╛╨▒╤Ç╨░╨╜ ╨┐╨╛╨┤ ╨┐╨░╨╜╨╡╨╗╤î sweet; ╨┤╨╗╤Å courbet ╨┐╨╛╨┤╨╝╨╡╨╜╤Å╨╡╨╝
-      # ╨╡╨│╨╛ dtbo ╨╕╨╖ LineageOS-╨╖╨╕╨┐╨░.
+      # dtbo.img из предсборки собран под панель sweet; для courbet подменяем
+      # его dtbo из LineageOS-зипа.
       - name: Replace dtbo.img with the courbet one
         run: |
           unzip -o /tmp/fw/rom.zip dtbo.img -d /tmp/fw/extracted
           if [ -f /tmp/fw/extracted/dtbo.img ]; then
             cp -f /tmp/fw/extracted/dtbo.img "$GITHUB_WORKSPACE/out/dtbo.img"
-            echo "dtbo.img ╨╖╨░╨╝╨╡╨╜╤æ╨╜ ╨╜╨░ ╨▓╨░╤Ç╨╕╨░╨╜╤é courbet ╨╕╨╖ LineageOS"
+            echo "dtbo.img заменён на вариант courbet из LineageOS"
             ls -la "$GITHUB_WORKSPACE/out/dtbo.img"
           else
-            echo "dtbo.img ╨╜╨╡ ╨╜╨░╨╣╨┤╨╡╨╜ ╨▓ rom.zip, ╨╛╤ü╤é╨░╤æ╤é╤ü╤Å ╨┐╤Ç╨╡╨┤╤ü╨╛╨▒╤Ç╨░╨╜╨╜╤ï╨╣"
+            echo "dtbo.img не найден в rom.zip, остаётся предсобранный"
           fi
 
       - name: Split large images
