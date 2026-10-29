@@ -9,6 +9,9 @@ on:
     types: [completed]
     branches: [main]
 
+permissions:
+  contents: write
+
 jobs:
   # needs: cannot cross workflow files, so the gate is the triggering run's
   # conclusion: a failed Mesa build must not produce a ROM with stale binaries.
@@ -128,7 +131,59 @@ jobs:
             --ota /tmp/fw/ota.zip \
             --sweet-rom /tmp/fw/rom.zip \
             --out out \
+            --keep-work \
             --patches defaults,50-remove-setup-wizard,-13-refresh-120hz
+
+      # The Mesa link gate can only tell that a symbol is undefined, not whether
+      # the device libc has it: qsort_r slipped through that way and blackened
+      # the screen ("libgallium_dri.so s=qsort_r").  Publish the real export
+      # lists from the trees that just got built, so build-mesa can check every
+      # import against what HarmonyOS actually ships.
+      - name: Publish the device symbol lists the Mesa gate checks
+        run: |
+          set -eu
+          mkdir -p build/device-symbols
+          dump() {  # <tree> <library name> <list file stem>
+            f=$(find -L "$1" -name "$2" -type f | head -1)
+            [ -n "$f" ] || { echo "::error::$2: not found under $1"; exit 1; }
+            nm -D --defined-only "$f" | awk '{print $3}' | sed 's/@.*//' | grep . | sort -u \
+              > "build/device-symbols/$3.txt"
+            echo "$3: $(wc -l < "build/device-symbols/$3.txt") symbols ($f)"
+          }
+          dump work/system_tree system/lib64       system-libc
+          dump work/system_tree system/lib64       system-libcxx
+          dump work/vendor_tree vendor/lib64       vendor-libdrm
+          dump work/vendor_tree vendor/lib64       vendor-libsurface
+          dump work/vendor_tree vendor/lib64       vendor-libz
+          rm -rf work
+
+          # Same plumbing publish as build-mesa.yml: the work tree here is full
+          # of build output, so the commit is assembled in a private index.
+          git config user.name "qualixxe"
+          git config user.email "qualixxe@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch --no-tags origin main
+            BASE=$(git rev-parse FETCH_HEAD)
+            rm -f "$RUNNER_TEMP/sym.index"
+            GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" git read-tree "$BASE"
+            for f in build/device-symbols/*.txt; do
+              GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" \
+                git update-index --add --cacheinfo 100644,"$(git hash-object --no-filters -w "$f")","$f"
+            done
+            TREE=$(GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" git write-tree)
+            if [ "$TREE" = "$(git rev-parse "$BASE^{tree}")" ]; then
+              echo "device symbol lists unchanged"
+              exit 0
+            fi
+            COMMIT=$(git commit-tree "$TREE" -p "$BASE" \
+              -m "rom: publish the HarmonyOS symbol lists the Mesa gate checks")
+            if git push origin "$COMMIT:refs/heads/main"; then
+              echo "published $COMMIT"
+              exit 0
+            fi
+            echo "main moved while this job ran, retrying ($attempt)"
+          done
+          exit 1
 
       # dtbo.img из предсборки собран под панель sweet; для courbet подменяем
       # его dtbo из LineageOS-зипа.
