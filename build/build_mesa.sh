@@ -85,8 +85,12 @@ import_stub_so libshared_libz.z.so \
 
 # libc: meson runs compile+link sanity checks, so the stub needs the crt entry
 # point and every libc function Mesa probes with cc.has_function() that the
-# HarmonyOS 5 musl headers actually declare (glibc-only random_r/qsort_s stay
-# out on purpose so Mesa keeps its portable fallbacks).
+# HarmonyOS 5 musl headers actually declare.  A name the device libc does not
+# export must stay out even if the headers declare it: qsort_r was here, the
+# probe passed, and the phone booted to "libgallium_dri.so s=qsort_r" and a
+# black screen.  Without it Mesa falls back to util_tls_qsort_r.  glibc-only
+# random_r/qsort_s stay out for the same reason.  check_mesa_deps.py verifies
+# the result against the device's own export lists.
 if [ ! -f "$SYSROOT/usr/lib/libc.so" ]; then
   cat > "$M/libc_stub.c" <<'EOF'
 typedef unsigned long usize;
@@ -122,7 +126,6 @@ char *secure_getenv(const char *name) { return 0; }
 int sched_getaffinity(int pid, usize cpusetsize, void *mask) { return 0; }
 int thrd_create(void *thr, void *func, void *arg) { return 0; }
 int pthread_setaffinity_np(unsigned long thread, usize cpusetsize, const void *cpuset) { return 0; }
-void qsort_r(void *base, usize n, usize size, void *cmp, void *arg) {}
 struct mallinfo2_stub { usize a, b, c, d, e, f, g, h, i, j; };
 struct mallinfo2_stub mallinfo2(void) { struct mallinfo2_stub m = {0}; return m; }
 void exit(int code) { for (;;) {} }
