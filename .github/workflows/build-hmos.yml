@@ -2,9 +2,20 @@ name: Build HarmonyOS for Courbet
 
 on:
   workflow_dispatch:
+  # build-mesa pushes the rebuilt .so files to main and then completes; chain
+  # the ROM build off that instead of dispatching by hand.
+  workflow_run:
+    workflows: ["Build Mesa for Courbet"]
+    types: [completed]
+    branches: [main]
 
 jobs:
-  build:
+  # needs: cannot cross workflow files, so the gate is the triggering run's
+  # conclusion: a failed Mesa build must not produce a ROM with stale binaries.
+  build-rom:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 360
     steps:
@@ -12,6 +23,14 @@ jobs:
       # (easimon/maximize-build-space used to wipe the checked-out repo).
       - name: Checkout hmos-courbet repo
         uses: actions/checkout@v4
+
+      - name: Sync the mesa binaries built by build-mesa
+        run: |
+          git fetch --no-tags origin main
+          git checkout FETCH_HEAD -- patches/11-gpu-mesa/files/
+          echo "== patches/11-gpu-mesa/files/lib64/chipsetsdk"
+          ls -l patches/11-gpu-mesa/files/lib64/chipsetsdk/
+          md5sum patches/11-gpu-mesa/files/lib64/chipsetsdk/*.so
 
       - name: Free disk space
         run: |
