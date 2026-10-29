@@ -77,6 +77,8 @@ jobs:
           git commit -m "mesa: rebuild $MESA_REF for courbet (GPU fence wait fix)"
           # Another commit can land on main while this job builds; rebase onto it
           # so the binaries still get published instead of losing the push.
+          # --autostash because the build step chmods build/ohos-clang*, which the
+          # repository records as 0644, so the work tree is always "dirty" here.
           git fetch --no-tags origin main
-          git rebase FETCH_HEAD
+          git rebase --autostash FETCH_HEAD
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/$GITHUB_REPOSITORY.git" HEAD:main
