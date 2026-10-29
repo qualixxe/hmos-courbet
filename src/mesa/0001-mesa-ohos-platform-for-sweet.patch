@@ -129,10 +129,48 @@ index 69a2e69..ed64da7 100644
        UNREACHABLE("Platform teardown is not properly hooked.");
        break;
 diff --git a/src/egl/drivers/dri2/egl_dri2.h b/src/egl/drivers/dri2/egl_dri2.h
-index 31916f8..740ee13 100644
+index 31916f8..933eefe 100644
 --- a/src/egl/drivers/dri2/egl_dri2.h
 +++ b/src/egl/drivers/dri2/egl_dri2.h
-@@ -562,6 +562,17 @@ dri2_initialize_android(_EGLDisplay *disp)
+@@ -299,6 +299,11 @@ struct dri2_egl_context {
+    struct dri_context *dri_context;
+ };
+ 
++#ifdef HAVE_OHOS_PLATFORM
++struct NativeWindow;
++struct NativeWindowBuffer;
++#endif
++
+ struct dri2_egl_surface {
+    _EGLSurface base;
+    struct dri_drawable *dri_drawable;
+@@ -377,6 +382,25 @@ struct dri2_egl_surface {
+    uint32_t gralloc_usage;
+ #endif
+ 
++#ifdef HAVE_OHOS_PLATFORM
++   struct NativeWindow *window;
++   struct NativeWindowBuffer *buffer;
++
++   /* in-fence associated with buffer, -1 once passed down to dri layer: */
++   int in_fence_fd;
++
++   struct dri_image *dri_image_back;
++   struct dri_image *dri_image_front;
++
++   /* Same bookkeeping as on Android: the surface owns a small pool of
++    * native buffers so EGL_BUFFER_AGE_EXT can be reported. */
++   int color_buffers_count;
++   struct {
++      struct NativeWindowBuffer *buffer;
++      int age;
++   } *color_buffers, *back;
++#endif
++
+    /* surfaceless and device */
+    struct dri_image *front;
+    enum pipe_format visual;
+@@ -562,6 +586,17 @@ dri2_initialize_android(_EGLDisplay *disp)
  }
  #endif
  
@@ -152,10 +190,10 @@ index 31916f8..740ee13 100644
  
 diff --git a/src/egl/drivers/dri2/platform_ohos.c b/src/egl/drivers/dri2/platform_ohos.c
 new file mode 100644
-index 0000000..d0dda6f
+index 0000000..5e06938
 --- /dev/null
 +++ b/src/egl/drivers/dri2/platform_ohos.c
-@@ -0,0 +1,861 @@
+@@ -0,0 +1,864 @@
 +/*
 + * Mesa 3-D graphics library
 + *
@@ -703,9 +741,13 @@ index 0000000..d0dda6f
 +}
 +
 +static EGLBoolean
-+ohos_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw)
++ohos_swap_buffers(_EGLDisplay *disp, _EGLSurface *draw,
++                  const EGLint *rects, EGLint n_rects)
 +{
 +   struct dri2_egl_surface *dri2_surf = dri2_egl_surface(draw);
++
++   (void)rects;
++   (void)n_rects;
 +
 +   for (int i = 0; i < dri2_surf->color_buffers_count; i++) {
 +      if (dri2_surf->color_buffers[i].age > 0)
@@ -881,7 +923,6 @@ index 0000000..d0dda6f
 +   .swap_interval = ohos_swap_interval,
 +   .query_buffer_age = ohos_query_buffer_age,
 +   .query_surface = ohos_query_surface,
-+   .get_dri_drawable = dri2_surface_get_dri_drawable,
 +};
 +
 +static const __DRIimageLoaderExtension ohos_image_loader_extension = {
