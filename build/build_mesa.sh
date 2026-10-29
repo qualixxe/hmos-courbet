@@ -94,6 +94,7 @@ c_args = ['-O2', '-fno-emulated-tls', '-Wno-error', '-Wno-int-conversion', '-Wno
 cpp_args = ['-O2', '-fno-emulated-tls', '-Wno-error']
 c_link_args = ['-Wl,--undefined-version', '$SYSROOT/usr/lib/libc.so']
 cpp_link_args = ['-Wl,--undefined-version', '$SYSROOT/usr/lib/libc++.so', '$SYSROOT/usr/lib/libc.so']
+b_lundef = false
 [properties]
 needs_exe_wrapper = true
 pkg_config_libdir = '$M/pc'
@@ -110,7 +111,7 @@ meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release \
   -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled \
   -Degl=enabled -Dllvm=disabled -Dandroid-stub=false -Dunversion-libgallium=true \
-  -Dglvnd=disabled -Ddisplay-info=disabled
+  -Dglvnd=disabled -Ddisplay-info=disabled -Dexpat=disabled -Dzstd=disabled
 
 ninja -C "$M/b"
 
