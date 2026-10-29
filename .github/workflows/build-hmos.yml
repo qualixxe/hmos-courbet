@@ -137,26 +137,56 @@ jobs:
       # The Mesa link gate can only tell that a symbol is undefined, not whether
       # the device libc has it: qsort_r slipped through that way and blackened
       # the screen ("libgallium_dri.so s=qsort_r").  Publish the real export
-      # lists from the trees that just got built, so build-mesa can check every
-      # import against what HarmonyOS actually ships.
+      # lists from the OTA images that just got extracted, so build-mesa can
+      # check every import against what HarmonyOS actually ships.  The images
+      # are read directly: no patch here touches the system tree, so hmos2sweet
+      # never extracts it.
       - name: Publish the device symbol lists the Mesa gate checks
         run: |
           set -eu
-          mkdir -p build/device-symbols
-          dump() {  # <tree> <library name> <list file stem>
-            # no -L: a symlinked lib is fine, nm follows it, but -L would also
-            # walk into symlinked directories of the extracted tree
-            f=$(find "$1" -name "$2" \( -type f -o -type l \) | head -1)
-            [ -n "$f" ] || { echo "::error::$2: not found under $1"; exit 1; }
-            nm -D --defined-only "$f" | awk '{print $3}' | sed 's/@.*//' | grep . | sort -u \
-              > "build/device-symbols/$3.txt"
-            echo "$3: $(wc -l < "build/device-symbols/$3.txt") symbols ($f)"
-          }
-          dump work/system_tree system/lib64       system-libc
-          dump work/system_tree system/lib64       system-libcxx
-          dump work/vendor_tree vendor/lib64       vendor-libdrm
-          dump work/vendor_tree vendor/lib64       vendor-libsurface
-          dump work/vendor_tree vendor/lib64       vendor-libz
+          mkdir -p build/device-symbols work/symtmp
+          python3 - <<'PY'
+          import os, subprocess, sys
+          sys.path.insert(0, ".")
+          from lib import erofs
+
+          WANT = [
+              ("work/ota/system.img", "libc.so", "system-libc"),
+              ("work/ota/system.img", "libc++.so", "system-libcxx"),
+              ("work/ota/vendor.img", "libdrm.so", "vendor-libdrm"),
+              ("work/ota/vendor.img", "libsurface.z.so", "vendor-libsurface"),
+              ("work/ota/vendor.img", "libshared_libz.z.so", "vendor-libz"),
+          ]
+          # system-as-root images keep lib64 under "system/", vendor images at
+          # the root; chipsetsdk/hw hold the vendor copies of some of them.
+          DIRS = ["system/lib64", "lib64", "system/lib64/chipsetsdk", "lib64/chipsetsdk",
+                  "system/lib64/ndk", "lib64/ndk", "system/lib64/hw", "lib64/hw"]
+
+          def locate(image, name):
+              for d in DIRS:
+                  if any(n == name and not is_dir for n, is_dir in erofs.list_dir(image, d)):
+                      return d + "/" + name
+              return None
+
+          for image, name, stem in WANT:
+              path = locate(image, name)
+              if not path:
+                  sys.exit(f"{name} not found in {image} ({', '.join(DIRS)})")
+              data = erofs.read_file(image, path, "work/symtmp")
+              if not data:
+                  sys.exit(f"{image}:/{path} did not extract")
+              tmp = os.path.join("work/symtmp", name)
+              with open(tmp, "wb") as fh:
+                  fh.write(data)
+              out = subprocess.run(["nm", "-D", "--defined-only", tmp],
+                                   stdout=subprocess.PIPE, universal_newlines=True).stdout
+              syms = sorted({p[2].split("@")[0] for p in (l.split(None, 3) for l in out.splitlines()) if len(p) > 2})
+              if not syms:
+                  sys.exit(f"nm returned no symbols for {tmp}")
+              with open(f"build/device-symbols/{stem}.txt", "w") as fh:
+                  fh.write("\n".join(syms) + "\n")
+              print(f"{stem}: {len(syms)} symbols from {image}:/{path}")
+          PY
           rm -rf work
 
           # Same plumbing publish as build-mesa.yml: the work tree here is full
