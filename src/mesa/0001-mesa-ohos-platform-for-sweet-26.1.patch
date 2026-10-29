@@ -200,7 +200,7 @@ new file mode 100644
 index 0000000..cce55ef
 --- /dev/null
 +++ b/src/egl/drivers/dri2/platform_ohos.c
-@@ -0,0 +1,862 @@
+@@ -0,0 +1,863 @@
 +/*
 + * Mesa 3-D graphics library
 + *
@@ -248,6 +248,7 @@ index 0000000..cce55ef
 +#include "util/libsync.h"
 +#include "util/log.h"
 +#include "util/os_file.h"
++#include "util/os_time.h"
 +#include "util/u_debug.h"
 +
 +#include "main/glconfig.h"
@@ -452,7 +453,7 @@ index 0000000..cce55ef
 +            void *fence = dri_create_fence_fd(dri2_ctx->dri_context, -1);
 +            if (fence) {
 +               dri_client_wait_sync(dri2_ctx->dri_context, fence, 0,
-+                                    PIPE_TIMEOUT_INFINITE);
++                                    OS_TIMEOUT_INFINITE);
 +               dri_destroy_fence(dri2_dpy->dri_screen_render_gpu, fence);
 +            }
 +         }
