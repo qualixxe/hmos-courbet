@@ -51,9 +51,7 @@ jobs:
           pip install brotli
 
       - name: Fetch EROFS tools
-        run: |
-          chmod +x tools/fetch_tools.sh
-          ./tools/fetch_tools.sh
+        run: ./tools/fetch_tools.sh
 
       - name: Download HarmonyOS OTA (Pura 70, HarmonyOS 5.1)
         run: |

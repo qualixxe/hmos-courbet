@@ -53,9 +53,7 @@ jobs:
           echo "Mesa VERSION: $(cat build/work/mesa/VERSION)"
 
       - name: Build Mesa (OHOS EGL platform, freedreno/kgsl)
-        run: |
-          chmod +x build/ohos-clang build/ohos-clang++ build/build_mesa.sh
-          ./build/build_mesa.sh
+        run: ./build/build_mesa.sh
 
       - name: Upload built libraries
         uses: actions/upload-artifact@v4
@@ -76,9 +74,10 @@ jobs:
           fi
           git commit -m "mesa: rebuild $MESA_REF for courbet (GPU fence wait fix)"
           # Another commit can land on main while this job builds; rebase onto it
-          # so the binaries still get published instead of losing the push.
-          # --autostash because the build step chmods build/ohos-clang*, which the
-          # repository records as 0644, so the work tree is always "dirty" here.
+          # so the binaries still get published instead of losing the push. Whatever
+          # is still uncommitted here is build-script churn, not the Mesa output,
+          # so throw it away rather than stashing it across the rebase.
+          git checkout -f -- .
           git fetch --no-tags origin main
-          git rebase --autostash FETCH_HEAD
+          git rebase FETCH_HEAD
           git push "https://x-access-token:${GITHUB_TOKEN}@github.com/$GITHUB_REPOSITORY.git" HEAD:main
