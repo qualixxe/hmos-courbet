@@ -144,7 +144,9 @@ jobs:
           set -eu
           mkdir -p build/device-symbols
           dump() {  # <tree> <library name> <list file stem>
-            f=$(find -L "$1" -name "$2" -type f | head -1)
+            # no -L: a symlinked lib is fine, nm follows it, but -L would also
+            # walk into symlinked directories of the extracted tree
+            f=$(find "$1" -name "$2" \( -type f -o -type l \) | head -1)
             [ -n "$f" ] || { echo "::error::$2: not found under $1"; exit 1; }
             nm -D --defined-only "$f" | awk '{print $3}' | sed 's/@.*//' | grep . | sort -u \
               > "build/device-symbols/$3.txt"
