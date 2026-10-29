@@ -17,7 +17,6 @@ pc zlib 1.2.13 z "-I$SYSROOT/usr/include"
 [ -f "$SYSROOT/usr/lib/libc.so" ] || { mkdir -p "$SYSROOT/usr/lib"; cat > "/tmp/libc_stub.c" <<'EOF'
 #include <stddef.h>
 void __libc_start_main(int (*main)(int, char**, char**), int argc, char** argv, void (*init)(void), void (*fini)(void), void (*rtld_fini)(void), void *stack_end) {}
-int __libc_start_main(void) { return 0; }
 void *memcpy(void *d, const void *s, size_t n) { return d; }
 void *memset(void *d, int c, size_t n) { return d; }
 size_t strlen(const char *s) { return 0; }
