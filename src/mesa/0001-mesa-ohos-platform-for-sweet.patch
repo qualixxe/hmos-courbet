@@ -1,3 +1,25 @@
+diff --git a/include/EGL/eglext.h b/include/EGL/eglext.h
+index c3639e4..6f67def 100644
+--- a/include/EGL/eglext.h
++++ b/include/EGL/eglext.h
+@@ -1523,6 +1523,17 @@ EGLAPI struct wl_buffer *EGLAPIENTRY eglCreateWaylandBufferFromImageWL (EGLDispl
+ #endif
+ #endif /* EGL_WL_create_wayland_buffer_from_image */
+ 
++/* OpenHarmony / HarmonyOS extensions (EGL/eglext.h from the OHOS NDK). */
++#ifndef EGL_KHR_platform_ohos
++#define EGL_KHR_platform_ohos 1
++#define EGL_PLATFORM_OHOS_KHR 0x34E0
++#endif
++
++#ifndef EGL_OHOS_image_native_buffer
++#define EGL_OHOS_image_native_buffer 1
++#define EGL_NATIVE_BUFFER_OHOS 0x34E1
++#endif
++
+ #ifdef __cplusplus
+ }
+ #endif
 diff --git a/meson.build b/meson.build
 index a0a826f..4d1584f 100644
 --- a/meson.build
