@@ -439,6 +439,9 @@ index 0000000..cce55ef
 +    * always -1 here. Without waiting, the composer would scan out a buffer
 +    * that the GPU has not finished writing yet, causing on-screen garbage
 +    * and flicker. Block until the GPU is done before queueing.
++    * dri_get_fence_fd would call screen->fence_get_fd, which is NULL when the
++    * driver has no native fence fds (it crashed render_service at pc 0);
++    * dri_client_wait_sync goes through screen->fence_finish instead.
 +    * Generated-by: LLM (assisted by user)
 +    */
 +   if (fence_fd < 0) {
@@ -448,12 +451,9 @@ index 0000000..cce55ef
 +         if (dri2_ctx && dri2_ctx->dri_context) {
 +            void *fence = dri_create_fence_fd(dri2_ctx->dri_context, -1);
 +            if (fence) {
-+               int fd = dri_get_fence_fd(dri2_dpy->dri_screen_render_gpu, fence);
++               dri_client_wait_sync(dri2_ctx->dri_context, fence, 0,
++                                    PIPE_TIMEOUT_INFINITE);
 +               dri_destroy_fence(dri2_dpy->dri_screen_render_gpu, fence);
-+               if (fd >= 0) {
-+                  sync_wait(fd, -1);
-+                  close(fd);
-+               }
 +            }
 +         }
 +      }
