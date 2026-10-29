@@ -47,7 +47,7 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs unzip curl brotli git
+          sudo apt-get install -y e2fsprogs unzip curl brotli git aria2
           pip install brotli
 
       - name: Fetch EROFS tools
@@ -61,12 +61,15 @@ jobs:
           cd /tmp/fw
 
           echo "--- Скачивание OTA (~5.3 ГБ) ---"
-          until curl -L --fail --retry 5 --retry-delay 5 -C - -H "User-Agent: Mozilla/5.0" \
-            -o ota.zip \
-            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"; do
-            echo "Обрыв, продолжаю..."
-            sleep 5
-          done
+          # aria2 дробит файл на чанки и тянет их параллельно; контрольный .aria2 +
+          # --continue подхватывают оборванный хвост вместо перезагрузки с нуля.
+          aria2c -x 8 -s 8 \
+            --continue=true --auto-file-renaming=false \
+            --max-tries=0 --retry-wait=5 --connect-timeout=30 \
+            --lowest-speed-limit=200K \
+            --summary-interval=60 --console-log-level=warn \
+            -d . -o ota.zip \
+            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"
 
           echo "sha256 ota.zip ..."
           OBS=$(sha256sum ota.zip | cut -c1-64)
@@ -83,25 +86,26 @@ jobs:
           # SourceForge (403 на айпишники датацентров) не годится; ROM берем с
           # Google Drive: LineageOS 23.2 (Omer), ~1.8 ГБ.
           ROM_ID=1IRjHBSXOJgGKHw6Kd36AtVdn_5BprpP4
-          URLS=(
-            "https://drive.usercontent.google.com/download?id=$ROM_ID&export=download&confirm=t"
-          )
+          ROM_URL="https://drive.usercontent.google.com/download?id=$ROM_ID&export=download&confirm=t"
 
-          echo "--- Скачивание LineageOS courbet ---"
+          echo "--- Скачивание LineageOS courbet (~1.8 ГБ) ---"
           ok=""
           for attempt in 1 2 3 4; do
-            IDX=$(( (attempt - 1) % 2 ))
-            URL="${URLS[$IDX]}"
-            echo "attempt $attempt: $URL"
-            curl -L --fail --retry 3 --retry-delay 5 --connect-timeout 30 \
-              -C - -H "User-Agent: Mozilla/5.0" -o rom.zip "$URL" && sleep 2
-            if [ -f rom.zip ] && [ "$(stat -c%s rom.zip)" -gt 1500000000 ]; then
-              if python3 -c "import zipfile,sys; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" rom.zip; then
-                ok="downloaded"; break
-              fi
+            echo "attempt $attempt: $ROM_URL"
+            if aria2c -x 8 -s 8 \
+                 --continue=true --auto-file-renaming=false \
+                 --max-tries=3 --retry-wait=5 --connect-timeout=30 \
+                 --lowest-speed-limit=200K \
+                 --summary-interval=60 --console-log-level=warn \
+                 -d . -o rom.zip "$ROM_URL" &&
+               [ "$(stat -c%s rom.zip)" -gt 1500000000 ] &&
+               python3 -c "import zipfile,sys; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) else 1)" rom.zip; then
+              ok="downloaded"; break
             fi
             echo "  попытка $attempt не удалась (размер: $(stat -c%s rom.zip 2>/dev/null || echo 0)), заново..."
-            rm -f rom.zip
+            # Drive-ссылка живёт ограниченное время, оборванный хвост по ней не
+            # продолжить -- начинаем этот файл заново.
+            rm -f rom.zip rom.zip.aria2
             sleep 5
           done
           [ -n "$ok" ] || { echo "ROM так и не скачался"; ls -la; exit 1; }
