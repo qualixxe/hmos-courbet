@@ -107,7 +107,7 @@ meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release \
   -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled \
   -Degl=enabled -Dllvm=disabled -Dandroid-stub=false -Dunversion-libgallium=true \
-  -Dglvnd=disabled -Ddisplay-info=disabled --wipe
+  -Dglvnd=disabled -Ddisplay-info=disabled
 
 ninja -C "$M/b"
 
