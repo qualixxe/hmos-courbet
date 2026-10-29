@@ -1,14 +1,16 @@
 #!/bin/bash
 # Mesa (freedreno on kgsl, OHOS EGL platform) -> patches/11-gpu-mesa/files.
-# MESA_SRC: a Mesa tree with the OHOS patch (tested: mesa main, 27.0.0-devel).
+# MESA_SRC: Mesa 26.1 tree (CI pins the mesa-26.1.8 tag); the OHOS patch below
+# is generated against that tag, so do not point this at Mesa master.
 # Needs: meson >= 1.4, ninja, python3-mako, python3-yaml, bison, flex, cross binutils.
 set -e
 . "$(dirname "$0")/env.sh"
 O=$OH_SRC; M=$WORK/mesa-build
 rm -rf "$M"; mkdir -p "$M/pc" "$SYSROOT/usr/lib"
 cd "$MESA_SRC"
+echo "Mesa source: $(cat VERSION 2>/dev/null || echo unknown) at $MESA_SRC"
 
-P="$REPO/src/mesa/0001-mesa-ohos-platform-for-sweet.patch"
+P="${MESA_PATCH:-$REPO/src/mesa/0001-mesa-ohos-platform-for-sweet-26.1.patch}"
 patch -p1 -N --dry-run < "$P" >/dev/null 2>&1 || {
   echo "ERROR: mesa patch does not apply to $MESA_SRC"; exit 1; }
 patch -p1 -N < "$P"
@@ -131,12 +133,15 @@ endian = 'little'
 EOC
 
 # ---------------------------------------------------------------- configure
+# build-tests=false keeps Mesa from linking host-unusable executables
+# (ir3_disasm & co) against the stub libc -- only the shared objects ship.
 meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release --wrap-mode=nofallback \
   -Dplatforms=ohos -Degl-native-platform=ohos \
   -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled \
   -Degl=enabled -Dllvm=disabled -Dandroid-stub=false -Dunversion-libgallium=true \
-  -Dglvnd=disabled -Ddisplay-info=disabled -Dexpat=disabled -Dzstd=disabled
+  -Dglvnd=disabled -Ddisplay-info=disabled -Dexpat=disabled -Dzstd=disabled \
+  -Dbuild-tests=false
 
 ninja -C "$M/b"
 

@@ -7,3 +7,4 @@
 *.xz binary
 patches/**/files/** binary
 prebuilt/** binary
+*.patch text eol=lf

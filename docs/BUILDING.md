@@ -13,7 +13,7 @@ needed if you change the sources in `src/`. All scripts are in `build/` and read
 | `build_ohos.sh` | composer + allocator, audio, user_auth, HUKS, sensors, RIL, GNSS, IR | clang/lld, llvm-strip, sysroot, OH sources |
 | `build_iam.sh` | OpenHarmony REE user_auth / pin_auth HDI services (patch 46) | as above + hdi-gen output for user_auth/pin_auth |
 | `build_camera_android.sh` | cambridge (bionic) + sweetcam-launch (static), patch 47 | clang/lld, AOSP headers in `$AOSP`, bionic runtime of a sweet ROM in `$ANDROID_LIBS` + crt objects in `$ANDROID_CRT` |
-| `build_mesa.sh` | Mesa (EGL/GLES + gallium freedreno) | meson, ninja, python3-mako/yaml, `MESA_SRC` (Mesa 26.1-devel) |
+| `build_mesa.sh` | Mesa (EGL/GLES + gallium freedreno) | meson, ninja, python3-mako/yaml, `MESA_SRC` (Mesa 26.1.x, CI pins `mesa-26.1.8`) |
 | `build_all.sh <work>` | everything above | |
 
 ## Notes
@@ -27,8 +27,10 @@ needed if you change the sources in `src/`. All scripts are in `build/` and read
     `work` folder of a conversion.
 - **Kernel**: LineageOS `android_kernel_xiaomi_sm6150`, branch `lineage-24.0`, commit `e03e5ba22`, with
   `vendor/sdmsteppe-perf_defconfig vendor/sweet.config vendor/ohos.config`.
-- **Mesa**: `src/mesa/0001-mesa-ohos-platform-for-sweet.patch` was made on `mesa-for-android-container-adreno`
-  26.1.0-devel. Other Mesa 26 versions may need small adjustments.
+- **Mesa**: `src/mesa/0001-mesa-ohos-platform-for-sweet-26.1.patch` is generated against the `mesa-26.1.8` tag and
+  the CI pins that tag (`MESA_REF`). Mesa master moves the DRI2 loader API (`dri_loader_funcs`,
+  `dri2_egl_display.has_native_fence_fd`, swap-buffers signature) under the port, so do not build against `main`.
+  `src/mesa/0001-mesa-ohos-platform-for-sweet.patch` is the older master-port, kept for reference.
 - **Camera (work in progress)**: `src/camera/bridge/cambridge.c` is built for Android (bionic) with clang
   `--target=aarch64-linux-android33`, the AOSP bionic/libhardware/system_core/system_media headers and linked
   against the bionic libraries of a sweet Android ROM; `src/camera/launcher` is a static glibc binary.
