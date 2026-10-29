@@ -129,10 +129,23 @@ index 69a2e69..ed64da7 100644
        UNREACHABLE("Platform teardown is not properly hooked.");
        break;
 diff --git a/src/egl/drivers/dri2/egl_dri2.h b/src/egl/drivers/dri2/egl_dri2.h
-index 31916f8..933eefe 100644
+index 31916f8..0d19203 100644
 --- a/src/egl/drivers/dri2/egl_dri2.h
 +++ b/src/egl/drivers/dri2/egl_dri2.h
-@@ -299,6 +299,11 @@ struct dri2_egl_context {
+@@ -292,6 +292,12 @@ struct dri2_egl_display {
+    bool has_native_fence_fd;
+    bool pure_swrast;
+ #endif
++
++#ifdef HAVE_OHOS_PLATFORM
++   /* Filled in from pscreen->caps; KGSL reports no native fences and the
++    * platform code then falls back to a blocking wait before queueing. */
++   bool has_native_fence_fd;
++#endif
+ };
+ 
+ struct dri2_egl_context {
+@@ -299,6 +305,11 @@ struct dri2_egl_context {
     struct dri_context *dri_context;
  };
  
@@ -144,7 +157,7 @@ index 31916f8..933eefe 100644
  struct dri2_egl_surface {
     _EGLSurface base;
     struct dri_drawable *dri_drawable;
-@@ -377,6 +382,25 @@ struct dri2_egl_surface {
+@@ -377,6 +388,25 @@ struct dri2_egl_surface {
     uint32_t gralloc_usage;
  #endif
  
@@ -170,7 +183,7 @@ index 31916f8..933eefe 100644
     /* surfaceless and device */
     struct dri_image *front;
     enum pipe_format visual;
-@@ -562,6 +586,17 @@ dri2_initialize_android(_EGLDisplay *disp)
+@@ -562,6 +592,17 @@ dri2_initialize_android(_EGLDisplay *disp)
  }
  #endif
  
@@ -1235,6 +1248,23 @@ index b055360..2537259 100644
  elif with_platform_haiku
    c_args_for_egl += [
      '-D_EGL_BUILT_IN_DRIVER_HAIKU',
+diff --git a/src/freedreno/ir3/meson.build b/src/freedreno/ir3/meson.build
+index 6e94d2c..2ce5022 100644
+--- a/src/freedreno/ir3/meson.build
++++ b/src/freedreno/ir3/meson.build
+@@ -151,6 +151,7 @@ libfreedreno_ir3 = static_library(
+   build_by_default : false,
+ )
+ 
++if with_tests
+ test('ir3_disasm',
+   executable(
+     'ir3_disasm',
+@@ -174,3 +175,4 @@ test('ir3_delay_test',
+   ),
+   suite: ['freedreno'],
+ )
++endif
 diff --git a/src/gallium/frontends/dri/dri_screen.c b/src/gallium/frontends/dri/dri_screen.c
 index cb43894..f91e957 100644
 --- a/src/gallium/frontends/dri/dri_screen.c
