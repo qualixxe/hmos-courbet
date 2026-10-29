@@ -152,7 +152,7 @@ index 31916f8..740ee13 100644
  
 diff --git a/src/egl/drivers/dri2/platform_ohos.c b/src/egl/drivers/dri2/platform_ohos.c
 new file mode 100644
-index 0000000..dd33703
+index 0000000..d0dda6f
 --- /dev/null
 +++ b/src/egl/drivers/dri2/platform_ohos.c
 @@ -0,0 +1,861 @@
@@ -249,7 +249,7 @@ index 0000000..dd33703
 +
 +static struct dri_image *
 +ohos_create_image_from_native_buffer(_EGLDisplay *disp,
-+                                     struct ANativeWindowBuffer *buf,
++                                     ANativeWindowBuffer *buf,
 +                                     void *priv)
 +{
 +   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
@@ -452,7 +452,7 @@ index 0000000..dd33703
 +   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
 +   struct dri2_egl_config *dri2_conf = dri2_egl_config(conf);
 +   struct dri2_egl_surface *dri2_surf;
-+   struct ANativeWindow *window = native_window;
++   ANativeWindow *window = native_window;
 +   const struct dri_config *config;
 +
 +   dri2_surf = calloc(1, sizeof *dri2_surf);
@@ -758,7 +758,7 @@ index 0000000..dd33703
 +
 +static _EGLImage *
 +dri2_create_image_ohos_native_buffer(_EGLDisplay *disp, _EGLContext *ctx,
-+                                     struct ANativeWindowBuffer *buf)
++                                     ANativeWindowBuffer *buf)
 +{
 +   if (ctx != NULL) {
 +      _eglError(EGL_BAD_CONTEXT, "eglCreateEGLImageKHR: for "
@@ -790,7 +790,7 @@ index 0000000..dd33703
 +   switch (target) {
 +   case EGL_NATIVE_BUFFER_OHOS:
 +      return dri2_create_image_ohos_native_buffer(
-+         disp, ctx, (struct ANativeWindowBuffer *)buffer);
++         disp, ctx, (ANativeWindowBuffer *)buffer);
 +   default:
 +      return dri2_create_image_khr(disp, ctx, target, buffer, attr_list);
 +   }
@@ -1019,7 +1019,7 @@ index 0000000..dd33703
 +}
 diff --git a/src/egl/drivers/dri2/platform_ohos.h b/src/egl/drivers/dri2/platform_ohos.h
 new file mode 100644
-index 0000000..ab4ffbc
+index 0000000..1f22c97
 --- /dev/null
 +++ b/src/egl/drivers/dri2/platform_ohos.h
 @@ -0,0 +1,73 @@
@@ -1046,23 +1046,23 @@ index 0000000..ab4ffbc
 +#include "display_type.h"
 +#include "window.h"
 +
-+#define ANativeWindow NativeWindow
-+#define ANativeWindowBuffer NativeWindowBuffer
++typedef OHNativeWindow ANativeWindow;
++typedef OHNativeWindowBuffer ANativeWindowBuffer;
 +
 +static inline void
-+ANativeWindow_acquire(struct ANativeWindow *window)
++ANativeWindow_acquire(ANativeWindow *window)
 +{
 +   NativeObjectReference(window);
 +}
 +
 +static inline void
-+ANativeWindow_release(struct ANativeWindow *window)
++ANativeWindow_release(ANativeWindow *window)
 +{
 +   NativeObjectUnreference(window);
 +}
 +
 +static inline int32_t
-+ANativeWindow_getFormat(struct ANativeWindow *window)
++ANativeWindow_getFormat(ANativeWindow *window)
 +{
 +   int32_t format = PIXEL_FMT_RGBA_8888;
 +   int32_t res = NativeWindowHandleOpt(window, GET_FORMAT, &format);
@@ -1070,15 +1070,15 @@ index 0000000..ab4ffbc
 +}
 +
 +static inline int32_t
-+ANativeWindow_dequeueBuffer(struct ANativeWindow *window,
-+                            struct ANativeWindowBuffer **buffer, int *fenceFd)
++ANativeWindow_dequeueBuffer(ANativeWindow *window,
++                            ANativeWindowBuffer **buffer, int *fenceFd)
 +{
 +   return NativeWindowRequestBuffer(window, buffer, fenceFd);
 +}
 +
 +static inline int32_t
-+ANativeWindow_queueBuffer(struct ANativeWindow *window,
-+                          struct ANativeWindowBuffer *buffer, int fenceFd)
++ANativeWindow_queueBuffer(ANativeWindow *window,
++                          ANativeWindowBuffer *buffer, int fenceFd)
 +{
 +   struct Region dirty;
 +   dirty.rectNumber = 0;
@@ -1087,8 +1087,8 @@ index 0000000..ab4ffbc
 +}
 +
 +static inline int32_t
-+ANativeWindow_cancelBuffer(struct ANativeWindow *window,
-+                           struct ANativeWindowBuffer *buffer, int fenceFd)
++ANativeWindow_cancelBuffer(ANativeWindow *window,
++                           ANativeWindowBuffer *buffer, int fenceFd)
 +{
 +   if (fenceFd >= 0)
 +      close(fenceFd);
