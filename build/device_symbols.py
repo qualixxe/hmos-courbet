@@ -43,13 +43,20 @@ COMPONENTS = ("system", "vendor")
 def image_tree(image, workdir):
     """Root of the extracted image (extract.erofs names it after the image)."""
     out = mkdirs(workdir)
-    subprocess.run([tool("extract.erofs"), "-i", image, "-x", "-o", out, "-s", "-f", "-T4"],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
-    produced = [os.path.join(out, d) for d in sorted(os.listdir(out))]
-    produced = [d for d in produced if os.path.isdir(d)]
-    if len(produced) != 1:
-        die("extract.erofs did not unpack %s" % image)
-    return produced[0]
+    p = subprocess.run([tool("extract.erofs"), "-i", image, "-x", "-o", out, "-s", "-f", "-T4"],
+                       stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    entries = sorted(os.listdir(out))
+    dirs = [e for e in entries if os.path.isdir(os.path.join(out, e))]
+    if len(dirs) == 1:
+        return os.path.join(out, dirs[0])
+    if dirs and any(d in dirs for d in ("lib64", "system", "bin")):
+        info("%s unpacked straight into %s" % (os.path.basename(image), out))
+        return out
+    with open(image, "rb") as fh:
+        head = fh.read(2048)
+    die("extract.erofs did not unpack %s (rc=%d, entries=%s, head=%s)\n%s"
+        % (image, p.returncode, entries[:20], head[:16].hex(),
+           p.stdout.decode(errors="replace")[-2000:]))
 
 
 def find_hits(root, name):
