@@ -31,18 +31,57 @@ pc zlib 1.2.13 shared_libz.z "-I$SYSROOT/usr/include"
 # ------------------------------------------------------- stub shared objects
 # Link-time only: the device provides the real libraries.  Every stub carries
 # the SONAME of the device library so DT_NEEDED entries stay valid on device.
-printf 'void mesa_build_link_stub(void) {}\n' > "$M/stub.c"
+#
+# The runner links with --as-needed, which drops a library from DT_NEEDED when
+# it resolves no reference, so a stub that exports nothing is never recorded --
+# and on device the loader then has nowhere to take the symbol from (the first
+# boot after this was missed: black screen, "relocating failed ... libEGL_impl.so
+# s=drmFreeDevice").  The libraries Mesa really imports from therefore export
+# their real symbol names; the probe-only libraries stay empty on purpose so
+# they drop out of DT_NEEDED, exactly like the reference binaries.
+#
+# build/make_sysroot.sh fills $SYSROOT with the genuine libraries when an OTA is
+# at hand, so anything without our marker is left alone, and our own stubs are
+# regenerated every run to pick up edits to the symbol lists below.
+MARKER=mesa_link_stub_marker
+is_our_stub() { grep -q "$MARKER" "$SYSROOT/usr/lib/$1" 2>/dev/null; }
+printf 'void %s(void) {}\n' "$MARKER" > "$M/stub.c"
 stub_so() {
   local out="$SYSROOT/usr/lib/$1"
-  [ -f "$out" ] && return 0
+  [ -e "$out" ] && ! is_our_stub "$1" && return 0
   "$REPO/build/ohos-clang" -shared -Wl,-soname,"$1" -o "$out" "$M/stub.c" -O2 -fPIC
 }
-for l in libdrm.so libsurface.z.so libhilog.so libshared_libz.z.so libdl.so \
-         librt.so libm.so libpthread.so libz.so \
+# A stub defining the names Mesa imports: the linker binds them to this library
+# and records it in DT_NEEDED, while the device resolves them from the real one.
+import_stub_so() {
+  local lib=$1 c s
+  if [ -e "$SYSROOT/usr/lib/$lib" ] && ! is_our_stub "$lib"; then
+    echo "sysroot provides the real $lib, using it"
+    return 0
+  fi
+  c="$M/$(basename "$lib" .so)_imports.c"
+  { printf 'void %s(void) {}\n' "$MARKER"
+    for s in "${@:2}"; do printf 'void %s(void) {}\n' "$s"; done; } > "$c"
+  "$REPO/build/ohos-clang" -shared -Wl,-soname,"$lib" -o "$SYSROOT/usr/lib/$lib" "$c" -O2 -fPIC
+}
+for l in libhilog.so libdl.so librt.so libm.so libpthread.so libz.so \
          libcutils.so libhardware.so liblog.so libutils.so libsync.so \
          libnativewindow.so libatomic.so; do
   stub_so "$l"
 done
+import_stub_so libdrm.so \
+  drmCommandWrite drmCommandWriteRead drmDevicesEqual drmDropMaster drmFreeDevice \
+  drmFreeDevices drmFreeVersion drmGetCap drmGetDevice2 drmGetDevices2 drmGetVersion \
+  drmGetPrimaryDeviceNameFromFd drmGetRenderDeviceNameFromFd drmIoctl \
+  drmPrimeFDToHandle drmPrimeHandleToFD drmSyncobjDestroy drmSyncobjExportSyncFile \
+  drmSyncobjFDToHandle drmSyncobjImportSyncFile drmSyncobjReset
+import_stub_so libsurface.z.so \
+  GetBufferHandleFromNative NativeObjectReference NativeObjectUnreference \
+  NativeWindowCancelBuffer NativeWindowFlushBuffer NativeWindowHandleOpt \
+  NativeWindowRequestBuffer
+import_stub_so libshared_libz.z.so \
+  crc32 deflate deflateEnd deflateInit_ gzclose gzerror gzflush gzopen gzwrite \
+  inflate inflateEnd inflateInit_
 
 # libc: meson runs compile+link sanity checks, so the stub needs the crt entry
 # point and every libc function Mesa probes with cc.has_function() that the
@@ -165,3 +204,4 @@ cp "$F/libGLESv2_impl.so" "$F/libGLESv3_impl.so"
 rm -f "$F"/libgallium-*.so
 echo "Mesa -> $F"
 ls -l "$F"
+python3 "$REPO/build/check_mesa_deps.py" "$F"
