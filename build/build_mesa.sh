@@ -36,6 +36,7 @@ stub_so() {
   "$REPO/build/ohos-clang" -shared -Wl,-soname,"$1" -o "$out" "$M/stub.c" -O2 -fPIC
 }
 for l in libdrm.so libsurface.z.so libhilog.so libshared_libz.z.so libdl.so \
+         librt.so libm.so libpthread.so libz.so \
          libcutils.so libhardware.so liblog.so libutils.so libsync.so \
          libnativewindow.so libatomic.so; do
   stub_so "$l"
@@ -56,6 +57,8 @@ int memcmp(const void *a, const void *b, size_t n) { return 0; }
 size_t strlen(const char *s) { return 0; }
 int strcmp(const char *a, const char *b) { return 0; }
 int strncmp(const char *a, const char *b, size_t n) { return 0; }
+int clock_gettime(int clk_id, void *tp) { return 0; }
+int dl_iterate_phdr(void *cb, void *data) { return 0; }
 void exit(int code) { for (;;) {} }
 void abort(void) { for (;;) {} }
 EOF

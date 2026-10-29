@@ -106,12 +106,34 @@ index 69a2e69..ed64da7 100644
     default:
        UNREACHABLE("Platform teardown is not properly hooked.");
        break;
+diff --git a/src/egl/drivers/dri2/egl_dri2.h b/src/egl/drivers/dri2/egl_dri2.h
+index 31916f8..740ee13 100644
+--- a/src/egl/drivers/dri2/egl_dri2.h
++++ b/src/egl/drivers/dri2/egl_dri2.h
+@@ -562,6 +562,17 @@ dri2_initialize_android(_EGLDisplay *disp)
+ }
+ #endif
+ 
++#ifdef HAVE_OHOS_PLATFORM
++EGLBoolean
++dri2_initialize_ohos(_EGLDisplay *disp);
++#else
++static inline EGLBoolean
++dri2_initialize_ohos(_EGLDisplay *disp)
++{
++   return _eglError(EGL_NOT_INITIALIZED, "OHOS platform not built");
++}
++#endif
++
+ EGLBoolean
+ dri2_initialize_surfaceless(_EGLDisplay *disp);
+ 
 diff --git a/src/egl/drivers/dri2/platform_ohos.c b/src/egl/drivers/dri2/platform_ohos.c
 new file mode 100644
-index 0000000..d9d462a
+index 0000000..dd33703
 --- /dev/null
 +++ b/src/egl/drivers/dri2/platform_ohos.c
-@@ -0,0 +1,858 @@
+@@ -0,0 +1,861 @@
 +/*
 + * Mesa 3-D graphics library
 + *
@@ -850,10 +872,9 @@ index 0000000..d9d462a
 +   .destroyLoaderImageState = ohos_destroy_loader_image_state,
 +};
 +
-+static const __DRIextension *ohos_image_loader_extensions[] = {
-+   &ohos_image_loader_extension.base,
-+   &image_lookup_extension.base,
-+   NULL,
++static const struct dri_loader_funcs ohos_image_loader_funcs = {
++   .image_lookup = &image_lookup_extension,
++   .image = &ohos_image_loader_extension,
 +};
 +
 +/* ------------------------------------------------------------------------ */
@@ -882,8 +903,7 @@ index 0000000..d9d462a
 +
 +   dri2_dpy->fd_render_gpu = fd;
 +   dri2_dpy->driver_name = strdup("kgsl");
-+   disp->Options.Kgsl = EGL_TRUE;
-+   dri2_dpy->loader_extensions = ohos_image_loader_extensions;
++   dri2_dpy->loader_funcs = &ohos_image_loader_funcs;
 +   dri2_detect_swrast_kopper(disp);
 +
 +   if (!dri2_create_screen(disp)) {
@@ -892,7 +912,6 @@ index 0000000..d9d462a
 +      dri2_dpy->driver_name = NULL;
 +      close(fd);
 +      dri2_dpy->fd_render_gpu = -1;
-+      disp->Options.Kgsl = EGL_FALSE;
 +      return EGL_FALSE;
 +   }
 +
@@ -914,7 +933,7 @@ index 0000000..d9d462a
 +
 +   dri2_dpy->fd_render_gpu = fd;
 +   dri2_dpy->driver_name = strdup("kms_swrast");
-+   dri2_dpy->loader_extensions = ohos_image_loader_extensions;
++   dri2_dpy->loader_funcs = &ohos_image_loader_funcs;
 +   dri2_detect_swrast_kopper(disp);
 +
 +   if (!dri2_create_screen(disp)) {
@@ -935,11 +954,16 @@ index 0000000..d9d462a
 +   struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
 +   const char *err;
 +   bool opened = false;
++   bool use_kgsl = false;
 +
-+   if (!ohos_want_software())
++   if (!ohos_want_software()) {
 +      opened = ohos_open_kgsl(disp);
-+   if (!opened)
++      use_kgsl = opened;
++   }
++   if (!opened) {
 +      opened = ohos_open_kms_swrast(disp);
++      use_kgsl = false;
++   }
 +   if (!opened) {
 +      err = "DRI2: failed to open a device";
 +      goto cleanup;
@@ -947,7 +971,8 @@ index 0000000..d9d462a
 +
 +   dri2_dpy->fd_display_gpu = dri2_dpy->fd_render_gpu;
 +
-+   if (!dri2_setup_device(disp, disp->Options.Kgsl ? true : false)) {
++   /* KGSL is not a DRM device: tell EGL not to look for a render node. */
++   if (!dri2_setup_device(disp, use_kgsl)) {
 +      err = "DRI2: failed to setup EGLDevice";
 +      goto cleanup;
 +   }
