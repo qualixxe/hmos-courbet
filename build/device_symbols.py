@@ -46,7 +46,10 @@ def image_tree(image, workdir):
     p = subprocess.run([tool("extract.erofs"), "-i", image, "-x", "-o", out, "-s", "-f", "-T4"],
                        stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
     entries = sorted(os.listdir(out))
-    dirs = [e for e in entries if os.path.isdir(os.path.join(out, e))]
+    # "config" is where the Android extension writes fs_config/file_contexts,
+    # not part of the tree.
+    dirs = [e for e in entries
+            if e != "config" and os.path.isdir(os.path.join(out, e))]
     if len(dirs) == 1:
         return os.path.join(out, dirs[0])
     if dirs and any(d in dirs for d in ("lib64", "system", "bin")):
