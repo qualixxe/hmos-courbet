@@ -31,8 +31,8 @@
       "replace_symlink": true
     },
     {
-      "src": "files/lib64/chipsetsdk/libgallium-26.1.0-devel.so",
-      "dst": "lib64/chipsetsdk/libgallium-26.1.0-devel.so",
+      "src": "files/lib64/chipsetsdk/libgallium_dri.so",
+      "dst": "lib64/chipsetsdk/libgallium_dri.so",
       "mode": "0644"
     }
   ],

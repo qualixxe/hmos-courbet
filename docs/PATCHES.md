@@ -94,7 +94,7 @@ Files added to /vendor:
 - `lib64/chipsetsdk/libGLESv1_impl.so`
 - `lib64/chipsetsdk/libGLESv2_impl.so`
 - `lib64/chipsetsdk/libGLESv3_impl.so`
-- `lib64/chipsetsdk/libgallium-26.1.0-devel.so`
+- `lib64/chipsetsdk/libgallium_dri.so`
 
 Removed from /vendor:
 

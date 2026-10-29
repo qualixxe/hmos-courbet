@@ -1,5 +1,5 @@
 diff --git a/meson.build b/meson.build
-index a0a826f..9654259 100644
+index a0a826f..4d1584f 100644
 --- a/meson.build
 +++ b/meson.build
 @@ -501,6 +501,10 @@ with_platform_wayland = _platforms.contains('wayland')
@@ -22,7 +22,7 @@ index a0a826f..9654259 100644
      with_glx = 'disabled'
    elif with_dri
      with_glx = 'dri'
-@@ -579,7 +583,7 @@ endif
+@@ -579,12 +583,12 @@ endif
  
  if with_egl
    _platforms += 'surfaceless'
@@ -31,6 +31,34 @@ index a0a826f..9654259 100644
      _platforms += 'drm'
    endif
  
+   # All the other platforms can be detected and cannot reach the native platform code
+-  _undetectable_platforms = ['x11', 'haiku', 'android', 'surfaceless']
++  _undetectable_platforms = ['x11', 'haiku', 'android', 'ohos', 'surfaceless']
+ 
+   # Don't enforce the native platform if none of the undetectable platforms are enabled
+   _undetectable_platforms_enabled = []
+diff --git a/meson.options b/meson.options
+index b0f065a..12a11bf 100644
+--- a/meson.options
++++ b/meson.options
+@@ -12,7 +12,7 @@ option(
+   type : 'array',
+   value : ['auto'],
+   choices : [
+-    'auto', 'x11', 'wayland', 'haiku', 'android', 'windows', 'macos',
++    'auto', 'x11', 'wayland', 'haiku', 'android', 'ohos', 'windows', 'macos',
+   ],
+   description : 'window systems to support. If this is set to `auto`, all ' +
+                 'platforms applicable will be enabled.'
+@@ -23,7 +23,7 @@ option(
+   type : 'combo',
+   value : 'auto',
+   choices : [
+-    'auto', 'x11', 'haiku', 'android', 'surfaceless',
++    'auto', 'x11', 'haiku', 'android', 'ohos', 'surfaceless',
+   ],
+   description : 'the window system EGL assumes for EGL_DEFAULT_DISPLAY',
+ )
 diff --git a/src/egl/drivers/dri2/egl_dri2.c b/src/egl/drivers/dri2/egl_dri2.c
 index 69a2e69..ed64da7 100644
 --- a/src/egl/drivers/dri2/egl_dri2.c
