@@ -9,9 +9,11 @@ Two failure modes have already cost a reflash and a black screen:
     ("... libgallium_dri.so s=qsort_r").
 
 The first is checked against REQUIRED below.  The second needs to know what the
-device actually exports, so build-hmos.yml publishes `nm -D` dumps of the
-HarmonyOS libraries into build/device-symbols/ and every strong undefined
-symbol here must be defined by one of those or by another shipped object.
+device actually exports, so build/device_symbols.py publishes `nm -D`
+dumps of the HarmonyOS libraries into build/device-symbols/ and every strong
+undefined symbol here must be defined by one of those or by another shipped
+object.
+
 Weak imports are skipped: the loader resolves them to zero instead of failing.
 
 usage: check_mesa_deps.py <directory with libEGL_impl.so and friends>
@@ -41,14 +43,14 @@ ALLOWED = set().union(*REQUIRED.values()) | {
     "libdmabufheap.z.so", "libutils.z.so",
 }
 
-# The device libraries whose export lists build-hmos.yml publishes, and the
-# file stem each list is stored under.
+# The device libraries the OTA export lists are published for, and the file
+# stem each list is stored under (see build/device_symbols.py).
 DEVICE_LIBS = {
-    "libc.so": "system-libc",
-    "libc++.so": "system-libcxx",
-    "libdrm.so": "vendor-libdrm",
-    "libsurface.z.so": "vendor-libsurface",
-    "libshared_libz.z.so": "vendor-libz",
+    "libc.so": "libc",
+    "libc++.so": "libcxx",
+    "libdrm.so": "libdrm",
+    "libsurface.z.so": "libsurface",
+    "libshared_libz.z.so": "libz",
 }
 
 # The symbol families each HarmonyOS library is expected to supply, used only to
@@ -109,7 +111,7 @@ def dynamic(fn):
 
 
 def device_symbols():
-    """{lib name: defined symbol set}, from the lists build-hmos.yml publishes."""
+    """{lib name: defined symbol set}, from the lists CI publishes."""
     lists, missing = {}, []
     for lib, stem in DEVICE_LIBS.items():
         path = os.path.join(HERE, "device-symbols", stem + ".txt")
@@ -121,8 +123,8 @@ def device_symbols():
     if missing:
         raise SystemExit(
             "ERROR: no device symbol lists: " + ", ".join(missing) +
-            "\nRun the 'Build HarmonyOS for Courbet' workflow once; it publishes "
-            "them from the ROM it builds.")
+            "\nRun the 'Publish device symbols' workflow; it writes them from "
+            "the OTA images.")
     return lists
 
 
