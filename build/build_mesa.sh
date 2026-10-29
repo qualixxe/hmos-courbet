@@ -149,7 +149,14 @@ ninja -C "$M/b"
 STRIP=${CROSS_STRIP:-aarch64-linux-gnu-strip}
 F=$REPO/patches/11-gpu-mesa/files/lib64/chipsetsdk
 mkdir -p "$F"
-pick() { find "$M/b" -name "$1" -type f | head -1; }
+# Meson installs versioned sonames (libEGL.so.1.0.0) and leaves libEGL.so as a
+# symlink, so -L is required for -type f to match the short names.
+pick() {
+  local f
+  f=$(find -L "$M/b" -name "$1" -type f | head -1)
+  [ -n "$f" ] || { echo "ERROR: $1 not found under $M/b"; exit 1; }
+  printf '%s\n' "$f"
+}
 "$STRIP" -o "$F/libEGL_impl.so"      "$(pick 'libEGL.so')"
 "$STRIP" -o "$F/libGLESv1_impl.so"   "$(pick 'libGLESv1_CM.so')"
 "$STRIP" -o "$F/libGLESv2_impl.so"   "$(pick 'libGLESv2.so')"
