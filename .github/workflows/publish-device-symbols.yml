@@ -1,0 +1,99 @@
+name: Publish device symbols
+
+# check_mesa_deps.py can only tell whether an import is undefined at link time;
+# whether the device can resolve it is answered solely by the HarmonyOS export
+# lists, and those can only be read from the real OTA images.  build-mesa needs
+# the lists in main *before* it rebuilds, so they cannot come from build-hmos
+# (which is triggered by build-mesa in turn).  Run this by hand whenever the
+# Mesa imports change, then dispatch Build Mesa.
+#
+# The heavy part is the 5.3 GB OTA download; the LineageOS zip and the whole
+# ROM build are not needed here.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout hmos-courbet repo
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/share/swift /usr/local/.ghcup /opt/ghc /opt/CodeQL || true
+          sudo rm -rf /usr/local/lib/android /usr/share/kotlin /opt/azuredatacli /usr/lib/jvm || true
+          sudo docker image prune -a -f >/dev/null 2>&1 || true
+          df -h /
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y e2fsprogs unzip curl brotli git aria2
+          pip install brotli
+
+      - name: Fetch EROFS tools
+        run: ./tools/fetch_tools.sh
+
+      - name: Download HarmonyOS OTA (Pura 70, HarmonyOS 5.1)
+        run: |
+          mkdir -p /tmp/fw
+          cd /tmp/fw
+          aria2c -x 8 -s 8 \
+            --continue=true --auto-file-renaming=false \
+            --max-tries=0 --retry-wait=5 --connect-timeout=30 \
+            --lowest-speed-limit=200K \
+            --summary-interval=60 --console-log-level=warn \
+            -d . -o ota.zip \
+            "http://update.dbankcdn.com/download/data/pub_13/HWHOTA_hota_900_9/c9/v3/fm2MH0XMR0m9EpxI0L2Zww/full/update_full_base.zip"
+
+          OBS=$(sha256sum ota.zip | cut -c1-64)
+          echo "sha256 ota.zip: $OBS"
+          if [ "$OBS" != "1c872454021bc9c2479ee3f09ea6d96e4b8631119606468d1fa6af0a52d189d1" ]; then
+            echo "ОШИБКА: пакет не совпадает с проверенной сборкой (ADY-LGRP3-CHN 205.1.0.128(SP5))"
+            exit 1
+          fi
+
+      - name: Publish the device symbol lists the Mesa gate checks
+        run: |
+          set -eu
+          python3 -u build/device_symbols.py /tmp/fw/ota.zip work
+          rm -rf work
+
+          # Same plumbing publish as build-mesa.yml: the work tree here is full
+          # of extracted images, so the commit is assembled in a private index.
+          git config user.name "qualixxe"
+          git config user.email "qualixxe@users.noreply.github.com"
+          for attempt in 1 2 3; do
+            git fetch --no-tags origin main
+            BASE=$(git rev-parse FETCH_HEAD)
+            rm -f "$RUNNER_TEMP/sym.index"
+            GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" git read-tree "$BASE"
+            for f in build/device-symbols/*.txt; do
+              GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" \
+                git update-index --add --cacheinfo 100644,"$(git hash-object --no-filters -w "$f")","$f"
+            done
+            TREE=$(GIT_INDEX_FILE="$RUNNER_TEMP/sym.index" git write-tree)
+            if [ "$TREE" = "$(git rev-parse "$BASE^{tree}")" ]; then
+              echo "device symbol lists unchanged"
+              exit 0
+            fi
+            COMMIT=$(git commit-tree "$TREE" -p "$BASE" \
+              -m "rom: publish the HarmonyOS symbol lists the Mesa gate checks")
+            if git push origin "$COMMIT:refs/heads/main"; then
+              echo "published $COMMIT"
+              exit 0
+            fi
+            echo "main moved while this job ran, retrying ($attempt)"
+          done
+          exit 1
