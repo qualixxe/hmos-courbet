@@ -43,26 +43,51 @@ for l in libdrm.so libsurface.z.so libhilog.so libshared_libz.z.so libdl.so \
 done
 
 # libc: meson runs compile+link sanity checks, so the stub needs the crt entry
-# point and a few libc symbols the test programs reference.
+# point and every libc function Mesa probes with cc.has_function() that the
+# HarmonyOS 5 musl headers actually declare (glibc-only random_r/qsort_s stay
+# out on purpose so Mesa keeps its portable fallbacks).
 if [ ! -f "$SYSROOT/usr/lib/libc.so" ]; then
   cat > "$M/libc_stub.c" <<'EOF'
-#include <stddef.h>
+typedef unsigned long usize;
 void __libc_start_main(int (*main)(int, char **, char **), int argc, char **argv,
                        void (*init)(void), void (*fini)(void),
                        void (*rtld_fini)(void), void *stack_end) {}
-void *memcpy(void *d, const void *s, size_t n) { return d; }
-void *memmove(void *d, const void *s, size_t n) { return d; }
-void *memset(void *d, int c, size_t n) { return d; }
-int memcmp(const void *a, const void *b, size_t n) { return 0; }
-size_t strlen(const char *s) { return 0; }
+void *memcpy(void *d, const void *s, usize n) { return d; }
+void *memmove(void *d, const void *s, usize n) { return d; }
+void *memset(void *d, int c, usize n) { return d; }
+int memcmp(const void *a, const void *b, usize n) { return 0; }
+usize strlen(const char *s) { return 0; }
 int strcmp(const char *a, const char *b) { return 0; }
-int strncmp(const char *a, const char *b, size_t n) { return 0; }
+int strncmp(const char *a, const char *b, usize n) { return 0; }
+char *strtok_r(char *s, const char *d, char **p) { return 0; }
+float strtof(const char *n, char **e) { return 0; }
 int clock_gettime(int clk_id, void *tp) { return 0; }
 int dl_iterate_phdr(void *cb, void *data) { return 0; }
+void *dlopen(const char *file, int mode) { return 0; }
+void *dlsym(void *handle, const char *name) { return 0; }
+void *dlvsym(void *handle, const char *name, const char *version) { return 0; }
+int dlclose(void *handle) { return 0; }
+char *dlerror(void) { return 0; }
+int dladdr(const void *addr, void *info) { return 0; }
+long sysconf(int name) { return -1; }
+int posix_memalign(void **p, usize a, usize s) { return 0; }
+void *reallocarray(void *p, usize n, usize s) { return 0; }
+void *fmemopen(void *buf, usize size, const char *mode) { return 0; }
+int memfd_create(const char *name, unsigned int flags) { return -1; }
+long getrandom(void *buf, usize len, unsigned int flags) { return 0; }
+int mkostemp(char *tmpl, int flags) { return -1; }
+int flock(int fd, int op) { return 0; }
+char *secure_getenv(const char *name) { return 0; }
+int sched_getaffinity(int pid, usize cpusetsize, void *mask) { return 0; }
+int thrd_create(void *thr, void *func, void *arg) { return 0; }
+int pthread_setaffinity_np(unsigned long thread, usize cpusetsize, const void *cpuset) { return 0; }
+void qsort_r(void *base, usize n, usize size, void *cmp, void *arg) {}
+struct mallinfo2_stub { usize a, b, c, d, e, f, g, h, i, j; };
+struct mallinfo2_stub mallinfo2(void) { struct mallinfo2_stub m = {0}; return m; }
 void exit(int code) { for (;;) {} }
 void abort(void) { for (;;) {} }
 EOF
-  "$REPO/build/ohos-clang" -fno-builtin -shared -Wl,-soname,libc.so \
+  "$REPO/build/ohos-clang" -fno-builtin -D_GNU_SOURCE -D__linux__=1 -shared -Wl,-soname,libc.so \
     -o "$SYSROOT/usr/lib/libc.so" "$M/libc_stub.c" -O2 -fPIC
 fi
 
@@ -106,7 +131,7 @@ endian = 'little'
 EOC
 
 # ---------------------------------------------------------------- configure
-meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release \
+meson setup "$M/b" --cross-file "$M/cross.ini" --buildtype=release --wrap-mode=nofallback \
   -Dplatforms=ohos -Degl-native-platform=ohos \
   -Dgallium-drivers=freedreno,softpipe -Dvulkan-drivers= -Dfreedreno-kmds=kgsl \
   -Dgles1=enabled -Dgles2=enabled -Dopengl=false -Dgbm=disabled -Dglx=disabled \
