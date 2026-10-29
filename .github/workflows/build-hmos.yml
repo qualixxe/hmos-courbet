@@ -50,7 +50,7 @@ jobs:
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y e2fsprogs unzip curl brotli git aria2
+          sudo apt-get install -y e2fsprogs unzip curl brotli git aria2 binutils
           pip install brotli
 
       - name: Fetch EROFS tools
